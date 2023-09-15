@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/x-icon" href="/img/aiquokka.png">
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        div.content {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-around;
+        }
+
+        div.main {
+            flex-grow: 1;
+        }
+
+        #answer img {
+            max-width: 100%;
+        }
+
+        .login {
+            border: 1px dashed #ccc;
+            padding: 0.5em;
+        }
+
+        select {
+            width: 10em;
+        }
+
+        .sample-images {
+            margin-left: 1em;
+        }
+
+        .sample-images img {
+            display: block;
+            border-radius: 20%;
+            margin: 1em 0;
+        }
+    </style>
+    <title>AI Quokka, simplest OpenAI API client on phone</title>
+</head>
+
+<body>
+    <h1><img src="img/aiquokka.png" style="height: 1em;" /> AI Quokka, GPT-4 api call or Dall-e image generator</h1>
+    <q><em>...for Quokkas are known for their cheerful demeanor</em> - ChatGPT 3.5</q>
+    <h2 id="loading" style="visibility: hidden;">Loading...</h2>
+    <div class="content">
+        <div class="main">
+            <div class="login">
+                <label for="userSelect">Select user</label>
+                <select id="userSelect" name="userSelect" onchange="setCurrentUser();">
+                </select>
+                <button onclick="addUser();">✨ Add user</button>
+                <button onclick="clearUsers()">🗑️ Clear users</button>
+            </div>
+            <textarea id="mainInput" style="width: 100%; min-width: 20em; height: 10em;display: block;"></textarea>
+            <button onclick="callWebService()">Ask GPT-4</button>
+            <button onclick="generateImage()">Generate image</button>
+
+            <h1>Answer</h1>
+            <div id="answer"></div>
+
+            <h1>Raw</h1>
+            <p id="response"></p>
+        </div>
+
+        <div class="sample-images">
+            <h2>Samples</h2>
+            <img src="img/dalle_dev_first_steps.png"
+                title="Developer in his basement connecting to an API for the first time, World of Warcraft style" />
+            <img src="img/dalle_alien_ship.png" width="256"
+                title="Space ship with complex structure hovering in space with beautiful green planet in far distance" />
+            <img src="img/dalle_aiquokka_icon.png" width="256"
+                title="Simple icon of robot Quokka connecting to AI API" />
+        </div>
+    </div>
+
+    <script>
+        const localStorageUsersKey = 'localStorageUsersKey';
+        const usersSelect = document.getElementById('userSelect');
+
+        let users = JSON.parse(localStorage.getItem(localStorageUsersKey)) ?? [];
+        let currentUser = null;
+        updateUsers();
+
+        function callWebService() {
+            if (!currentUser) {
+                alert('No user selected');
+                return;
+            }
+
+            const loadingElement = document.getElementById('loading');
+            const mainInput = document.getElementById('mainInput');
+            const answerDiv = document.getElementById('answer');
+            const prompt = mainInput.value;
+
+            const apiUrl = 'https://api.openai.com/v1/chat/completions';
+            const requestData = {
+                model: 'gpt-4',
+                messages: [
+                    {
+                        role: 'user',
+                        content: prompt,
+                    },
+                ],
+                temperature: 1,
+                max_tokens: 512,
+                top_p: 1,
+                frequency_penalty: 0,
+                presence_penalty: 0,
+            };
+            const headers = {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${currentUser.openAIToken}`,
+            };
+
+            loadingElement.style.visibility = 'visible';
+            fetch(apiUrl, {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify(requestData),
+            })
+                .then((response) => response.json())
+                .then((data) => {
+                    console.log(data);
+
+                    const tokensUsedParagraph = document.createElement('p');
+                    tokensUsedParagraph.innerHTML = `Token usage (model: ${data.model}): ${JSON.stringify(data.usage)}`;
+                    answerDiv.append(tokensUsedParagraph);
+
+                    data?.choices?.forEach(choice => {
+                        const answerParagraph = document.createElement('p');
+                        answerParagraph.innerHTML = `Finish reason: ${choice?.finish_reason} <br />`;
+                        answerParagraph.innerHTML += `- [Role: ${choice?.message?.role}]: ${choice?.message?.content.replace(/\n/g, '<br />')} <br />`
+                        answerDiv.append(answerParagraph);
+                    });
+
+                    document.getElementById('response').innerHTML = JSON.stringify(data);
+                })
+                .catch((error) => {
+                    console.error('Error:', error);
+                }).finally(() => {
+                    loadingElement.style.visibility = 'hidden';
+                });
+        }
+
+        function generateImage() {
+            if (!currentUser) {
+                alert('No user selected');
+                return;
+            }
+
+            const loadingElement = document.getElementById('loading');
+            const mainInput = document.getElementById('mainInput');
+            const answerDiv = document.getElementById('answer');
+            const prompt = mainInput.value;
+            const apiUrl = 'https://api.openai.com/v1/images/generations';
+            const requestData = {
+                prompt: prompt,
+                n: 1,
+                size: '512x512',
+            };
+            const headers = {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${currentUser.openAIToken}`,
+            };
+
+            loadingElement.style.visibility = 'visible';
+            fetch(apiUrl, {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify(requestData),
+            })
+                .then((response) => response.json())
+                .then((response) => {
+                    console.log(response);
+
+                    response?.data?.forEach(img => {
+                        const answerParagraph = document.createElement('p');
+                        answerParagraph.innerHTML = `<img src="${img.url}" />`;
+                        answerDiv.append(answerParagraph);
+                    });
+                })
+                .catch((error) => {
+                    console.error('Error:', error);
+                }).finally(() => {
+                    loadingElement.style.visibility = 'hidden';
+                });
+        }
+
+        function addUser() {
+            const name = prompt('Name?');
+            const openAIToken = prompt('OpenAI token?');
+
+            users = [...users, { name: name, openAIToken: openAIToken }];
+            updateUsers();
+        }
+
+        function clearUsers() {
+            users = [];
+            updateUsers();
+        }
+
+        function updateUsers() {
+            localStorage.setItem(localStorageUsersKey, JSON.stringify(users));
+            renderUsers();
+
+            setCurrentUser();
+        }
+
+        function setCurrentUser() {
+            currentUser = users.find(u => u.name === usersSelect.value);
+            console.warn(currentUser);
+        }
+
+        function renderUsers() {
+            usersSelect.innerHTML = '';
+
+            users?.forEach(u => {
+                usersSelect.innerHTML += `<option value="${u.name}">${u.name}</option>`;
+            });
+        }
+    </script>
+
+</body>
+
+</html>
