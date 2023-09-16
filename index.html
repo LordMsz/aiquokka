@@ -19,6 +19,8 @@
 
         div.main {
             flex-grow: 1;
+            max-width: 100%;
+            padding: 0.5em;
         }
 
         #answer img {
@@ -217,7 +219,6 @@
 
         function setCurrentUser() {
             currentUser = users.find(u => u.name === usersSelect.value);
-            console.warn(currentUser);
         }
 
         function renderUsers() {
