@@ -32,6 +32,10 @@
             padding: 0.5em;
         }
 
+        .params {
+            text-align: right;
+        }
+
         select {
             width: 10em;
         }
@@ -62,6 +66,21 @@
                 <button onclick="addUser();">✨ Add user</button>
                 <button onclick="clearUsers()">🗑️ Clear users</button>
             </div>
+            <div class="params">
+                <label for="imageModelSelect">Image Model</label>
+                <select id="imageModelSelect" name="imageModelSelect">
+                    <option value="dall-e-3">dall-e-3</option>
+                    <option value="dall-e-2">dall-e-2</option>
+                </select>
+                <label for="imageSizeSelect">Image Size</label>
+                <select id="imageSizeSelect" name="imageSizeSelect">
+                    <option value="1024x1024">1024x1024</option>
+                    <option value="1024x1792">1024x1792 (Dall-e 3)</option>
+                    <option value="1792x1024">1792x1024 (Dall-e 3)</option>
+                    <option value="512x512">512x512 (Dall-e 2)</option>
+                    <option value="256x256">256x256 (Dall-e 2)</option>
+                </select>
+            </div>
             <textarea id="mainInput" style="width: 100%; min-width: 20em; height: 10em;display: block;"></textarea>
             <button onclick="callWebService()">Ask GPT-4</button>
             <button onclick="generateImage()">Generate image</button>
@@ -77,6 +96,8 @@
             <h2>Samples</h2>
             <img src="img/dalle_dev_first_steps.png"
                 title="Developer in his basement connecting to an API for the first time, World of Warcraft style" />
+            <img src="img/dalle3_dev_first_steps.png"
+                title="Developer in his basement connecting to an API for the first time, World of Warcraft style (Dall-E 3)" width="256"/>
             <img src="img/dalle_alien_ship.png" width="256"
                 title="Space ship with complex structure hovering in space with beautiful green planet in far distance" />
             <img src="img/dalle_aiquokka_icon.png" width="256"
@@ -161,13 +182,17 @@
 
             const loadingElement = document.getElementById('loading');
             const mainInput = document.getElementById('mainInput');
+            const imageModelSelect = document.getElementById('imageModelSelect');
+            const imageSizeSelect = document.getElementById('imageSizeSelect');
+
             const answerDiv = document.getElementById('answer');
             const prompt = mainInput.value;
             const apiUrl = 'https://api.openai.com/v1/images/generations';
             const requestData = {
+                model: imageModelSelect.value,
                 prompt: prompt,
                 n: 1,
-                size: '512x512',
+                size: imageSizeSelect.value,
             };
             const headers = {
                 'Content-Type': 'application/json',
@@ -187,6 +212,9 @@
                     response?.data?.forEach(img => {
                         const answerParagraph = document.createElement('p');
                         answerParagraph.innerHTML = `<img src="${img.url}" />`;
+                        if(img.revised_prompt) {
+                            answerParagraph.innerHTML += `<br />Revised prompt: <em>${img.revised_prompt}</em>`;
+                        }
                         answerDiv.append(answerParagraph);
                     });
                 })
