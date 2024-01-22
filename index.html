@@ -11,6 +11,26 @@
             box-sizing: border-box;
         }
 
+        body {
+            margin: 0;
+            background-color: #F3F4F6;
+        }
+
+        h1 {
+            margin: 0;
+        }
+
+        #loading {
+            position: fixed;
+            top: 30vh;
+            width: 100%;
+            text-align: center;
+            margin: 0;
+            padding: 1em 0;
+            background: repeating-linear-gradient(-45deg, #606dbc, #606dbc 10px, #465298 10px, #465298 20px);
+            color: white;
+        }
+
         div.content {
             display: flex;
             flex-wrap: wrap;
@@ -64,6 +84,9 @@
     <h2 id="loading" style="visibility: hidden;">Loading...</h2>
     <div class="content">
         <div class="main">
+            <h1>Answer</h1>
+            <div id="answer"></div>
+
             <div class="login">
                 <label for="userSelect">Select user</label>
                 <select id="userSelect" name="userSelect" onchange="setCurrentUser();">
@@ -72,6 +95,10 @@
                 <button onclick="clearUsers()">🗑️ Clear users</button>
             </div>
             <div class="params">
+                <div>
+                    <label for="tokensLimitInput">Completion tokens limit</label>
+                    <input type="number" id="tokensLimitInput" name="tokensLimitInput" value="1024" />
+                </div>
                 <div>
                     <label for="imageModelSelect">Image Model</label>
                     <select id="imageModelSelect" name="imageModelSelect">
@@ -95,12 +122,6 @@
             <textarea id="mainInput" style="width: 100%; min-width: 20em; height: 10em;display: block;"></textarea>
             <button onclick="callWebService()">Ask GPT-4</button>
             <button onclick="generateImage()">Generate image</button>
-
-            <h1>Answer</h1>
-            <div id="answer"></div>
-
-            <h1>Raw</h1>
-            <p id="response"></p>
         </div>
 
         <div class="sample-images">
@@ -124,6 +145,8 @@
         let currentUser = null;
         updateUsers();
 
+        const conversationHistory = [];
+
         function callWebService() {
             if (!currentUser) {
                 alert('No user selected');
@@ -133,19 +156,20 @@
             const loadingElement = document.getElementById('loading');
             const mainInput = document.getElementById('mainInput');
             const answerDiv = document.getElementById('answer');
+            const tokensLimitInput = document.getElementById('tokensLimitInput');
             const prompt = mainInput.value;
+            const newMessage = {
+                role: 'user',
+                content: prompt,
+            };
+            conversationHistory.push(newMessage);
 
             const apiUrl = 'https://api.openai.com/v1/chat/completions';
             const requestData = {
                 model: 'gpt-4',
-                messages: [
-                    {
-                        role: 'user',
-                        content: prompt,
-                    },
-                ],
+                messages: conversationHistory,
                 temperature: 1,
-                max_tokens: 512,
+                max_tokens: +tokensLimitInput?.value || 1024,
                 top_p: 1,
                 frequency_penalty: 0,
                 presence_penalty: 0,
@@ -174,11 +198,13 @@
                         answerParagraph.innerHTML = `Finish reason: ${choice?.finish_reason} <br />`;
                         answerParagraph.innerHTML += `- [Role: ${choice?.message?.role}]: ${choice?.message?.content.replace(/\n/g, '<br />')} <br />`
                         answerDiv.append(answerParagraph);
-                    });
 
-                    document.getElementById('response').innerHTML = JSON.stringify(data);
+                        conversationHistory.push({ role: choice?.message?.role, content: choice?.message?.content });
+                    });
+                    answerDiv.scrollTop = answerDiv.scrollHeight;
                 })
                 .catch((error) => {
+                    alert('An error occured, see console');
                     console.error('Error:', error);
                 }).finally(() => {
                     loadingElement.style.visibility = 'hidden';
@@ -199,7 +225,7 @@
 
             const answerDiv = document.getElementById('answer');
             let prompt = mainInput.value;
-            if(imageDisableRevisedPromptCb.checked) {
+            if (imageDisableRevisedPromptCb.checked) {
                 // "disabling" from the docs
                 prompt = 'I NEED to test how the tool works with extremely simple prompts. DO NOT add any detail, just use it AS-IS: ' + prompt;
             }
@@ -229,11 +255,12 @@
                     response?.data?.forEach(img => {
                         const answerParagraph = document.createElement('p');
                         answerParagraph.innerHTML = `<img src="${img.url}" />`;
-                        if(img.revised_prompt) {
+                        if (img.revised_prompt) {
                             answerParagraph.innerHTML += `<br />Revised prompt: <em>${img.revised_prompt}</em>`;
                         }
                         answerDiv.append(answerParagraph);
                     });
+                    answerDiv.scrollTop = answerDiv.scrollHeight;
                 })
                 .catch((error) => {
                     console.error('Error:', error);
