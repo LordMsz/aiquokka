@@ -122,9 +122,6 @@
             <textarea id="mainInput" style="width: 100%; min-width: 20em; height: 10em;display: block;"></textarea>
             <button onclick="callWebService()">Ask GPT-4</button>
             <button onclick="generateImage()">Generate image</button>
-
-            <h1>Raw</h1>
-            <p id="response"></p>
         </div>
 
         <div class="sample-images">
@@ -205,8 +202,6 @@
                         conversationHistory.push({ role: choice?.message?.role, content: choice?.message?.content });
                     });
                     answerDiv.scrollTop = answerDiv.scrollHeight;
-
-                    document.getElementById('response').innerHTML = JSON.stringify(data);
                 })
                 .catch((error) => {
                     alert('An error occured, see console');
