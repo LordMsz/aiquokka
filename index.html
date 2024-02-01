@@ -52,6 +52,7 @@
             position: relative;
             max-width: 90%;
             margin: 2px;
+            margin-bottom: 1em;
             padding: 10px;
             border-radius: 5px;
             background-color: #b7d3e1;
@@ -107,6 +108,19 @@
 
         #answer img {
             max-width: 100%;
+        }
+
+        #answer .tokens-usage {
+            margin: 0;
+            margin-left: 8px;
+            font-size: 0.8em;
+            font-style: italic;
+        }
+
+        #answer .message-suffix {
+            float: right;
+            font-size: 0.8em;
+            font-style: italic;
         }
 
         .login {
@@ -253,14 +267,12 @@
                     console.log(data);
 
                     const tokensUsedParagraph = document.createElement('p');
-                    tokensUsedParagraph.innerHTML = `Token usage (model: ${data.model}): ${JSON.stringify(data.usage)}`;
+                    tokensUsedParagraph.classList.add('tokens-usage');
+                    tokensUsedParagraph.innerHTML = `Model: ${data.model}. Tokens usage: ✔️completion: ${data.usage.completion_tokens} ❔prompt: ${data.usage.prompt_tokens} 🟰total: ${data.usage.total_tokens}`;
                     answerDiv.append(tokensUsedParagraph);
 
                     data?.choices?.forEach(choice => {
-                        const answerParagraph = document.createElement('p');
-                        answerParagraph.innerHTML = `Finish reason: ${choice?.finish_reason} <br />`;
-
-                        renderMessage(choice?.message);
+                        renderMessage(choice?.message, `Finish reason: ${choice?.finish_reason}`);
                         conversationHistory.push({ role: choice?.message?.role, content: choice?.message?.content });
                         mainInput.value = '';
                     });
@@ -330,7 +342,7 @@
                 });
         }
 
-        function renderMessage(message) {
+        function renderMessage(message, suffix) {
             const {role, content} = message;
 
             if(!role || !content) {
@@ -340,6 +352,9 @@
             const answerParagraph = document.createElement('p');
             answerParagraph.classList.add('chat-bubble', message?.role);
             answerParagraph.innerHTML += message?.content.replace(/\n/g, '<br />');
+            if(suffix) {
+                answerParagraph.innerHTML += `<br /><span class="message-suffix">${suffix}</span>`;
+            }
             answerDiv.append(answerParagraph);
         }
 
