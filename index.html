@@ -43,8 +43,84 @@
             padding: 0.5em;
         }
 
+        #answer {
+            display: flex;
+            flex-direction: column;
+        }
+
+        #answer .chat-bubble {
+            position: relative;
+            max-width: 90%;
+            margin: 2px;
+            margin-bottom: 1em;
+            padding: 10px;
+            border-radius: 5px;
+            background-color: #b7d3e1;
+            box-shadow: 2px 2px 2px 2px #e5e5e5;
+        }
+
+        #answer .chat-bubble::after {
+            content: '';
+            position: absolute;
+            width: 0px;
+            height: 0px;
+            top: 4px;
+            border: 10px solid transparent;
+        }
+
+        #answer .chat-bubble.assistant {
+            padding-left: 6px;
+            align-self: flex-start;
+        }
+
+        #answer .chat-bubble.assistant::after {
+            left: -10px;
+            border-right-color: #b7d3e1;
+            border-left: 0;
+        }
+
+        #answer .chat-bubble.user {
+            padding-left: 2px;
+            align-self: flex-end;
+            background-color: #b7bde1;
+        }
+
+        #answer .chat-bubble.user::after {
+            right: -10px;
+            border-left-color: #b7bde1;
+            border-right: 0;
+        }
+
+        #answer .chat-bubble::before {
+            position: relative;
+            bottom: 8px;
+            margin-right: 0.5em;
+            font-size: 0.8em;
+        }
+
+        #answer .chat-bubble.user::before {
+            content: '👤';
+        }
+
+        #answer .chat-bubble.assistant::before {
+            content: '🤖 AI';
+        }
+
         #answer img {
             max-width: 100%;
+        }
+
+        #answer .tokens-usage {
+            margin: 0;
+            margin-left: 8px;
+            font-size: 0.8em;
+            font-style: italic;
+        }
+
+        #answer .message-suffix {
+            float: right;
+            font-size: 0.8em;
+            font-style: italic;
         }
 
         .login {
@@ -55,6 +131,7 @@
         .params {
             display: flex;
             justify-content: flex-end;
+            flex-wrap: wrap;
         }
 
         .params label {
@@ -81,10 +158,8 @@
 <body>
     <h1><img src="img/aiquokka.png" style="height: 1em;" /> AI Quokka, GPT-4 api call or Dall-e image generator</h1>
     <q><em>...for Quokkas are known for their cheerful demeanor</em> - ChatGPT 3.5</q>
-    <h2 id="loading" style="visibility: hidden;">Loading...</h2>
     <div class="content">
         <div class="main">
-            <h1>Answer</h1>
             <div id="answer"></div>
 
             <div class="login">
@@ -96,7 +171,7 @@
             </div>
             <div class="params">
                 <div>
-                    <label for="tokensLimitInput">Completion tokens limit</label>
+                    <label for="tokensLimitInput">Completion limit</label>
                     <input type="number" id="tokensLimitInput" name="tokensLimitInput" value="1024" />
                 </div>
                 <div>
@@ -136,6 +211,7 @@
                 title="Simple icon of robot Quokka connecting to AI API" />
         </div>
     </div>
+    <h2 id="loading" style="visibility: hidden;">Loading...</h2>
 
     <script>
         const localStorageUsersKey = 'localStorageUsersKey';
@@ -147,15 +223,16 @@
 
         const conversationHistory = [];
 
+        const loadingElement = document.getElementById('loading');
+        const mainInput = document.getElementById('mainInput');
+        const answerDiv = document.getElementById('answer');
+
         function callWebService() {
             if (!currentUser) {
                 alert('No user selected');
                 return;
             }
 
-            const loadingElement = document.getElementById('loading');
-            const mainInput = document.getElementById('mainInput');
-            const answerDiv = document.getElementById('answer');
             const tokensLimitInput = document.getElementById('tokensLimitInput');
             const prompt = mainInput.value;
             const newMessage = {
@@ -163,6 +240,7 @@
                 content: prompt,
             };
             conversationHistory.push(newMessage);
+            renderMessage(newMessage);
 
             const apiUrl = 'https://api.openai.com/v1/chat/completions';
             const requestData = {
@@ -190,16 +268,14 @@
                     console.log(data);
 
                     const tokensUsedParagraph = document.createElement('p');
-                    tokensUsedParagraph.innerHTML = `Token usage (model: ${data.model}): ${JSON.stringify(data.usage)}`;
+                    tokensUsedParagraph.classList.add('tokens-usage');
+                    tokensUsedParagraph.innerHTML = `Model: ${data.model}. Tokens usage: ✔️completion: ${data.usage.completion_tokens} ❔prompt: ${data.usage.prompt_tokens} 🟰total: ${data.usage.total_tokens}`;
                     answerDiv.append(tokensUsedParagraph);
 
                     data?.choices?.forEach(choice => {
-                        const answerParagraph = document.createElement('p');
-                        answerParagraph.innerHTML = `Finish reason: ${choice?.finish_reason} <br />`;
-                        answerParagraph.innerHTML += `- [Role: ${choice?.message?.role}]: ${choice?.message?.content.replace(/\n/g, '<br />')} <br />`
-                        answerDiv.append(answerParagraph);
-
+                        renderMessage(choice?.message, `Finish reason: ${choice?.finish_reason}`);
                         conversationHistory.push({ role: choice?.message?.role, content: choice?.message?.content });
+                        mainInput.value = '';
                     });
                     answerDiv.scrollTop = answerDiv.scrollHeight;
                 })
@@ -217,13 +293,10 @@
                 return;
             }
 
-            const loadingElement = document.getElementById('loading');
-            const mainInput = document.getElementById('mainInput');
             const imageModelSelect = document.getElementById('imageModelSelect');
             const imageSizeSelect = document.getElementById('imageSizeSelect');
             const imageDisableRevisedPromptCb = document.getElementById('imageDisableRevisedPromptCb');
 
-            const answerDiv = document.getElementById('answer');
             let prompt = mainInput.value;
             if (imageDisableRevisedPromptCb.checked) {
                 // "disabling" from the docs
@@ -255,18 +328,35 @@
                     response?.data?.forEach(img => {
                         const answerParagraph = document.createElement('p');
                         answerParagraph.innerHTML = `<img src="${img.url}" />`;
-                        if (img.revised_prompt) {
-                            answerParagraph.innerHTML += `<br />Revised prompt: <em>${img.revised_prompt}</em>`;
-                        }
                         answerDiv.append(answerParagraph);
+                        if (img.revised_prompt) {
+                            renderMessage({ role: 'assistant', content:  `Revised prompt: <em>${img.revised_prompt}</em>`})
+                        }
                     });
                     answerDiv.scrollTop = answerDiv.scrollHeight;
+                    mainInput.value = '';
                 })
                 .catch((error) => {
                     console.error('Error:', error);
                 }).finally(() => {
                     loadingElement.style.visibility = 'hidden';
                 });
+        }
+
+        function renderMessage(message, suffix) {
+            const {role, content} = message;
+
+            if(!role || !content) {
+                return;
+            }
+
+            const answerParagraph = document.createElement('p');
+            answerParagraph.classList.add('chat-bubble', message?.role);
+            answerParagraph.innerHTML += message?.content.replace(/\n/g, '<br />');
+            if(suffix) {
+                answerParagraph.innerHTML += `<br /><span class="message-suffix">${suffix}</span>`;
+            }
+            answerDiv.append(answerParagraph);
         }
 
         function addUser() {
