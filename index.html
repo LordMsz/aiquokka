@@ -390,6 +390,12 @@
                 usersSelect.innerHTML += `<option value="${u.name}">${u.name}</option>`;
             });
         }
+		
+		document.addEventListener('keydown', (event) => {
+			if(event.ctrlKey && event.key == "Enter") {
+			callWebService();
+		  }
+		});		
     </script>
 
 </body>
