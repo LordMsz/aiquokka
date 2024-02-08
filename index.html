@@ -147,9 +147,29 @@
             margin-left: 0.5em;
         }
 
-        #mainInput {
+        .inputs {
+            display: flex;
+        }
+
+        .inputs #mainInput {
+            flex: 1 20em;
             min-height: 10em;
             max-height: 10em;
+        }
+
+        .inputs button {
+            flex-basis: 1em;
+            align-self: center;
+            margin: 0 0 0 0.2em;
+            font-size: 3em;
+            padding: 0;
+            border-radius: 8px;
+            border-width: 3px;
+            border-color: #f3f4f6;
+        }
+
+        .inputs button:hover {
+            background-color: #e4e4e4;
         }
 
         select {
@@ -174,9 +194,13 @@
                 display: block;
             }
 
-            #mainInput {
+            .inputs #mainInput {
                 min-height: 4em;
                 max-height: 8em;
+            }
+
+            .inputs button {
+                font-size: 2em;
             }
         }
     </style>
@@ -222,9 +246,11 @@
                 <label for="imageDisableRevisedPromptCb">Disable revised prompt (Dall-e 3)</label>
                 <input type="checkbox" id="imageDisableRevisedPromptCb" name="imageDisableRevisedPromptCb" />
             </div>
-            <textarea id="mainInput" autofocus oninput="this.style.height=''; this.style.height=this.scrollHeight + 'px'"></textarea>
-            <button onclick="callWebService()">Ask GPT-4</button>
-            <button onclick="generateImage()">Generate image</button>
+            <div class="inputs">
+                <textarea id="mainInput" autofocus oninput="this.style.height=''; this.style.height=this.scrollHeight + 'px'"></textarea>
+                <button id="chat" onclick="callWebService()" title="Send message to chat">▶️</button>
+                <button id="image" onclick="generateImage()" title="Generate image">🌄</button>
+            </div>
         </div>
     </div>
     <h2 id="loading" style="visibility: hidden;">Loading...</h2>
