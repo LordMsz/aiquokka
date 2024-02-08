@@ -194,7 +194,7 @@
                 <label for="imageDisableRevisedPromptCb">Disable revised prompt (Dall-e 3)</label>
                 <input type="checkbox" id="imageDisableRevisedPromptCb" name="imageDisableRevisedPromptCb" />
             </div>
-            <textarea id="mainInput" style="width: 100%; min-width: 20em; height: 10em;display: block;"></textarea>
+            <textarea id="mainInput" style="width: 100%; min-width: 20em; height: 10em;display: block;" autofocus></textarea>
             <button onclick="callWebService()">Ask GPT-4</button>
             <button onclick="generateImage()">Generate image</button>
         </div>
@@ -390,6 +390,12 @@
                 usersSelect.innerHTML += `<option value="${u.name}">${u.name}</option>`;
             });
         }
+		
+		document.addEventListener('keydown', (event) => {
+			if(event.ctrlKey && event.key == "Enter") {
+			callWebService();
+		  }
+		});		
     </script>
 
 </body>
