@@ -11,7 +11,13 @@
             box-sizing: border-box;
         }
 
+        html, body {
+            height: 100%;
+        }
+
         body {
+            display: flex;
+            flex-direction: column;
             margin: 0;
             background-color: #F3F4F6;
         }
@@ -32,13 +38,13 @@
         }
 
         div.content {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: space-around;
+            flex: 1 auto;
         }
 
         div.main {
-            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
             max-width: 100%;
             padding: 0.5em;
         }
@@ -46,6 +52,9 @@
         #answer {
             display: flex;
             flex-direction: column;
+            flex: 1 100px;
+            padding: 0 8px; /* for arrows */
+            overflow: auto;
         }
 
         #answer .chat-bubble {
@@ -152,8 +161,12 @@
                 display: none;
             }
 
-            h1 + q {
+            h1+q {
                 display: none;
+            }
+
+            #answer .tokens-usage .usage {
+                display: block;
             }
         }
     </style>
@@ -262,7 +275,8 @@
 
                     const tokensUsedParagraph = document.createElement('p');
                     tokensUsedParagraph.classList.add('tokens-usage');
-                    tokensUsedParagraph.innerHTML = `Model: ${data.model}. Tokens usage: ✔️completion: ${data.usage.completion_tokens} ❔prompt: ${data.usage.prompt_tokens} 🟰total: ${data.usage.total_tokens}`;
+                    tokensUsedParagraph.innerHTML += `<span class="model">Model: ${data.model}. </span>`;
+                    tokensUsedParagraph.innerHTML += `<span class="usage">Tokens usage: ✔️completion: ${data.usage.completion_tokens} ❔prompt: ${data.usage.prompt_tokens} 🟰total: ${data.usage.total_tokens}</span>`;
                     answerDiv.append(tokensUsedParagraph);
 
                     data?.choices?.forEach(choice => {
@@ -323,7 +337,7 @@
                         answerParagraph.innerHTML = `<img src="${img.url}" />`;
                         answerDiv.append(answerParagraph);
                         if (img.revised_prompt) {
-                            renderMessage({ role: 'assistant', content:  `Revised prompt: <em>${img.revised_prompt}</em>`})
+                            renderMessage({ role: 'assistant', content: `Revised prompt: <em>${img.revised_prompt}</em>` });
                         }
                     });
                     answerDiv.scrollTop = answerDiv.scrollHeight;
@@ -337,16 +351,16 @@
         }
 
         function renderMessage(message, suffix) {
-            const {role, content} = message;
+            const { role, content } = message;
 
-            if(!role || !content) {
+            if (!role || !content) {
                 return;
             }
 
             const answerParagraph = document.createElement('p');
             answerParagraph.classList.add('chat-bubble', message?.role);
             answerParagraph.innerHTML += message?.content.replace(/\n/g, '<br />');
-            if(suffix) {
+            if (suffix) {
                 answerParagraph.innerHTML += `<br /><span class="message-suffix">${suffix}</span>`;
             }
             answerDiv.append(answerParagraph);
@@ -383,12 +397,12 @@
                 usersSelect.innerHTML += `<option value="${u.name}">${u.name}</option>`;
             });
         }
-		
-		document.addEventListener('keydown', (event) => {
-			if(event.ctrlKey && event.key == "Enter") {
-			callWebService();
-		  }
-		});		
+
+        document.addEventListener('keydown', (event) => {
+            if (event.ctrlKey && event.key == "Enter") {
+                callWebService();
+            }
+        });
     </script>
 
 </body>
