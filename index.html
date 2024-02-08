@@ -248,7 +248,7 @@
             </div>
             <div class="inputs">
                 <textarea id="mainInput" autofocus oninput="this.style.height=''; this.style.height=this.scrollHeight + 'px'"></textarea>
-                <button id="chat" onclick="callWebService()" title="Send message to chat">▶️</button>
+                <button id="chat" onclick="sendChat()" title="Send message to chat">▶️</button>
                 <button id="image" onclick="generateImage()" title="Generate image">🌄</button>
             </div>
         </div>
@@ -269,7 +269,7 @@
         const mainInput = document.getElementById('mainInput');
         const answerDiv = document.getElementById('answer');
 
-        function callWebService() {
+        function sendChat() {
             if (!currentUser) {
                 alert('No user selected');
                 return;
@@ -436,7 +436,7 @@
 
         document.addEventListener('keydown', (event) => {
             if (event.ctrlKey && event.key == "Enter") {
-                callWebService();
+                sendChat();
             }
         });
     </script>
