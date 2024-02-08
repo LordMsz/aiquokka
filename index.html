@@ -142,21 +142,26 @@
             width: 10em;
         }
 
-        .sample-images {
-            margin-left: 1em;
+        /* Responsive styles */
+        @media screen and (max-width: 1024px) {
+            
         }
 
-        .sample-images img {
-            display: block;
-            border-radius: 20%;
-            margin: 1em 0;
+        @media screen and (max-width: 640px) {
+            h1 {
+                display: none;
+            }
+
+            h1 + q {
+                display: none;
+            }
         }
     </style>
-    <title>AI Quokka, simplest OpenAI API client on phone</title>
+    <title>AI Quokka, Yet Another OpenAI API client</title>
 </head>
 
 <body>
-    <h1><img src="img/aiquokka.png" style="height: 1em;" /> AI Quokka, GPT-4 api call or Dall-e image generator</h1>
+    <h1><img src="img/aiquokka.png" style="height: 1em;" /> AI Quokka, Yet Another OpenAI API client</h1>
     <q><em>...for Quokkas are known for their cheerful demeanor</em> - ChatGPT 3.5</q>
     <div class="content">
         <div class="main">
@@ -197,18 +202,6 @@
             <textarea id="mainInput" style="width: 100%; min-width: 20em; height: 10em;display: block;" autofocus></textarea>
             <button onclick="callWebService()">Ask GPT-4</button>
             <button onclick="generateImage()">Generate image</button>
-        </div>
-
-        <div class="sample-images">
-            <h2>Samples</h2>
-            <img src="img/dalle_dev_first_steps.png"
-                title="Developer in his basement connecting to an API for the first time, World of Warcraft style" />
-            <img src="img/dalle3_dev_first_steps.png"
-                title="Developer in his basement connecting to an API for the first time, World of Warcraft style (Dall-E 3)" width="256"/>
-            <img src="img/dalle_alien_ship.png" width="256"
-                title="Space ship with complex structure hovering in space with beautiful green planet in far distance" />
-            <img src="img/dalle_aiquokka_icon.png" width="256"
-                title="Simple icon of robot Quokka connecting to AI API" />
         </div>
     </div>
     <h2 id="loading" style="visibility: hidden;">Loading...</h2>
