@@ -147,13 +147,18 @@
             margin-left: 0.5em;
         }
 
+        #mainInput {
+            min-height: 10em;
+            max-height: 10em;
+        }
+
         select {
             width: 10em;
         }
 
         /* Responsive styles */
         @media screen and (max-width: 1024px) {
-            
+
         }
 
         @media screen and (max-width: 640px) {
@@ -167,6 +172,11 @@
 
             #answer .tokens-usage .usage {
                 display: block;
+            }
+
+            #mainInput {
+                min-height: 4em;
+                max-height: 8em;
             }
         }
     </style>
@@ -212,7 +222,7 @@
                 <label for="imageDisableRevisedPromptCb">Disable revised prompt (Dall-e 3)</label>
                 <input type="checkbox" id="imageDisableRevisedPromptCb" name="imageDisableRevisedPromptCb" />
             </div>
-            <textarea id="mainInput" style="width: 100%; min-width: 20em; height: 10em;display: block;" autofocus></textarea>
+            <textarea id="mainInput" autofocus oninput="this.style.height=''; this.style.height=this.scrollHeight + 'px'"></textarea>
             <button onclick="callWebService()">Ask GPT-4</button>
             <button onclick="generateImage()">Generate image</button>
         </div>
