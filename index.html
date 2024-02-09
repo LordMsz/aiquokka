@@ -6,14 +6,30 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="manifest" href="manifest.json">
     <link rel="icon" type="image/x-icon" href="/img/aiquokka.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Color+Emoji&family=Noto+Sans:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet">
     <style>
         * {
             box-sizing: border-box;
         }
 
+        html, body {
+            height: 100%;
+        }
+
         body {
+            display: flex;
+            flex-direction: column;
             margin: 0;
             background-color: #F3F4F6;
+
+            font-family: 'Noto Sans', sans-serif;
+            font-size: 15px;
+        }
+
+        .emoji {
+            font-family: 'Noto Color Emoji', sans-serif;
         }
 
         h1 {
@@ -32,13 +48,13 @@
         }
 
         div.content {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: space-around;
+            flex: 1 auto;
         }
 
         div.main {
-            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
             max-width: 100%;
             padding: 0.5em;
         }
@@ -46,6 +62,9 @@
         #answer {
             display: flex;
             flex-direction: column;
+            flex: 1 100px;
+            padding: 0 8px; /* for arrows */
+            overflow: auto;
         }
 
         #answer .chat-bubble {
@@ -123,6 +142,52 @@
             font-style: italic;
         }
 
+        header {
+            display: flex;
+        }
+
+        header button {
+            background: none;
+            border: none;
+            font-size: 1.3em;
+            padding: 0.5em 0.7em;
+            cursor: pointer;
+        }
+
+        header button:hover {
+            background-color: #e4e4e4;
+        }
+
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: -40vw;
+            width: 40vw;
+            height: 100vh;
+            background-color: #e3e3e3;
+            border-right: 2px solid #d9d9d9;
+            transition: left 0.3s ease-in-out;
+        }
+
+        .sidebar-overlay {
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #0e0e0e6e;
+            cursor: pointer;
+        }
+
+        .sidebar.open {
+            left: 0;
+        }
+
+        .sidebar-overlay.open {
+            display: block;
+        }
+
         .login {
             border: 1px dashed #ccc;
             padding: 0.5em;
@@ -138,77 +203,122 @@
             margin-left: 0.5em;
         }
 
+        .inputs {
+            display: flex;
+        }
+
+        .inputs #mainInput {
+            flex: 1 20em;
+            min-height: 10em;
+            max-height: 10em;
+        }
+
+        .inputs button {
+            flex-basis: 1em;
+            align-self: center;
+            margin: 0 0 0 0.2em;
+            font-size: 3em;
+            padding: 0;
+            border-radius: 8px;
+            border-width: 3px;
+            border-color: #f3f4f6;
+        }
+
+        .inputs button:hover {
+            background-color: #e4e4e4;
+        }
+
         select {
             width: 10em;
         }
 
-        .sample-images {
-            margin-left: 1em;
+        /* Responsive styles */
+        @media screen and (max-width: 1024px) {
+
         }
 
-        .sample-images img {
-            display: block;
-            border-radius: 20%;
-            margin: 1em 0;
+        @media screen and (max-width: 640px) {
+            h1 {
+                display: none;
+            }
+
+            h1+q {
+                display: none;
+            }
+
+            #answer .tokens-usage .usage {
+                display: block;
+            }
+
+            .sidebar {
+                width: 70vw;
+                left: -70vw;
+            }
+
+            .inputs #mainInput {
+                min-height: 4em;
+                max-height: 8em;
+            }
+
+            .inputs button {
+                font-size: 2em;
+            }
         }
     </style>
-    <title>AI Quokka, simplest OpenAI API client on phone</title>
+    <title>AI Quokka, Yet Another OpenAI API client</title>
 </head>
 
 <body>
-    <h1><img src="img/aiquokka.png" style="height: 1em;" /> AI Quokka, GPT-4 api call or Dall-e image generator</h1>
-    <q><em>...for Quokkas are known for their cheerful demeanor</em> - ChatGPT 3.5</q>
+    <header>
+        <button class="emoji" onclick="toggleSidebar()" title="Display settings">☰</button>
+        <div>
+            <h1><img src="img/aiquokka.png" style="height: 1em;" /> AI Quokka, Yet Another OpenAI API client</h1>
+            <q><em>...for Quokkas are known for their cheerful demeanor</em> - ChatGPT 3.5</q>
+        </div>
+    </header>
     <div class="content">
         <div class="main">
             <div id="answer"></div>
-
-            <div class="login">
-                <label for="userSelect">Select user</label>
-                <select id="userSelect" name="userSelect" onchange="setCurrentUser();">
-                </select>
-                <button onclick="addUser();">✨ Add user</button>
-                <button onclick="clearUsers()">🗑️ Clear users</button>
+            <div class="inputs">
+                <textarea id="mainInput" autofocus oninput="this.style.height=''; this.style.height=this.scrollHeight + 'px'"></textarea>
+                <button class="emoji" id="chat" onclick="sendChat()" title="Send message to chat">💬</button>
+                <button class="emoji" id="image" onclick="generateImage()" title="Generate image">🌄</button>
             </div>
-            <div class="params">
-                <div>
-                    <label for="tokensLimitInput">Completion limit</label>
-                    <input type="number" id="tokensLimitInput" name="tokensLimitInput" value="1024" />
-                </div>
-                <div>
-                    <label for="imageModelSelect">Image Model</label>
-                    <select id="imageModelSelect" name="imageModelSelect">
-                        <option value="dall-e-3">dall-e-3</option>
-                        <option value="dall-e-2">dall-e-2</option>
-                    </select>
-                </div>
-                <div>
-                    <label for="imageSizeSelect">Image Size</label>
-                    <select id="imageSizeSelect" name="imageSizeSelect">
-                        <option value="1024x1024">1024x1024</option>
-                        <option value="1024x1792">1024x1792 (Dall-e 3)</option>
-                        <option value="1792x1024">1792x1024 (Dall-e 3)</option>
-                        <option value="512x512">512x512 (Dall-e 2)</option>
-                        <option value="256x256">256x256 (Dall-e 2)</option>
-                    </select>
-                </div>
-                <label for="imageDisableRevisedPromptCb">Disable revised prompt (Dall-e 3)</label>
-                <input type="checkbox" id="imageDisableRevisedPromptCb" name="imageDisableRevisedPromptCb" />
-            </div>
-            <textarea id="mainInput" style="width: 100%; min-width: 20em; height: 10em;display: block;" autofocus></textarea>
-            <button onclick="callWebService()">Ask GPT-4</button>
-            <button onclick="generateImage()">Generate image</button>
         </div>
-
-        <div class="sample-images">
-            <h2>Samples</h2>
-            <img src="img/dalle_dev_first_steps.png"
-                title="Developer in his basement connecting to an API for the first time, World of Warcraft style" />
-            <img src="img/dalle3_dev_first_steps.png"
-                title="Developer in his basement connecting to an API for the first time, World of Warcraft style (Dall-E 3)" width="256"/>
-            <img src="img/dalle_alien_ship.png" width="256"
-                title="Space ship with complex structure hovering in space with beautiful green planet in far distance" />
-            <img src="img/dalle_aiquokka_icon.png" width="256"
-                title="Simple icon of robot Quokka connecting to AI API" />
+    </div>
+    <div class="sidebar-overlay" onclick="toggleSidebar()"></div>
+    <div class="sidebar">
+        <div class="login">
+            <label for="userSelect">Select user</label>
+            <select id="userSelect" name="userSelect" onchange="setCurrentUser();">
+            </select>
+            <button class="emoji" onclick="addUser();">✨ Add user</button>
+            <button class="emoji" onclick="clearUsers()">🗑️ Clear users</button>
+        </div>
+        <div class="params">
+            <div>
+                <label for="tokensLimitInput">Completion limit</label>
+                <input type="number" id="tokensLimitInput" name="tokensLimitInput" value="1024" />
+            </div>
+            <div>
+                <label for="imageModelSelect">Image Model</label>
+                <select id="imageModelSelect" name="imageModelSelect">
+                    <option value="dall-e-3">dall-e-3</option>
+                    <option value="dall-e-2">dall-e-2</option>
+                </select>
+            </div>
+            <div>
+                <label for="imageSizeSelect">Image Size</label>
+                <select id="imageSizeSelect" name="imageSizeSelect">
+                    <option value="1024x1024">1024x1024</option>
+                    <option value="1024x1792">1024x1792 (Dall-e 3)</option>
+                    <option value="1792x1024">1792x1024 (Dall-e 3)</option>
+                    <option value="512x512">512x512 (Dall-e 2)</option>
+                    <option value="256x256">256x256 (Dall-e 2)</option>
+                </select>
+            </div>
+            <label for="imageDisableRevisedPromptCb">Disable revised prompt (Dall-e 3)</label>
+            <input type="checkbox" id="imageDisableRevisedPromptCb" name="imageDisableRevisedPromptCb" />
         </div>
     </div>
     <h2 id="loading" style="visibility: hidden;">Loading...</h2>
@@ -227,7 +337,7 @@
         const mainInput = document.getElementById('mainInput');
         const answerDiv = document.getElementById('answer');
 
-        function callWebService() {
+        function sendChat() {
             if (!currentUser) {
                 alert('No user selected');
                 return;
@@ -269,7 +379,8 @@
 
                     const tokensUsedParagraph = document.createElement('p');
                     tokensUsedParagraph.classList.add('tokens-usage');
-                    tokensUsedParagraph.innerHTML = `Model: ${data.model}. Tokens usage: ✔️completion: ${data.usage.completion_tokens} ❔prompt: ${data.usage.prompt_tokens} 🟰total: ${data.usage.total_tokens}`;
+                    tokensUsedParagraph.innerHTML += `<span class="model">Model: ${data.model}. </span>`;
+                    tokensUsedParagraph.innerHTML += `<span class="usage">Tokens usage: ✔️completion: ${data.usage.completion_tokens} ❔prompt: ${data.usage.prompt_tokens} 🟰total: ${data.usage.total_tokens}</span>`;
                     answerDiv.append(tokensUsedParagraph);
 
                     data?.choices?.forEach(choice => {
@@ -330,7 +441,7 @@
                         answerParagraph.innerHTML = `<img src="${img.url}" />`;
                         answerDiv.append(answerParagraph);
                         if (img.revised_prompt) {
-                            renderMessage({ role: 'assistant', content:  `Revised prompt: <em>${img.revised_prompt}</em>`})
+                            renderMessage({ role: 'assistant', content: `Revised prompt: <em>${img.revised_prompt}</em>` });
                         }
                     });
                     answerDiv.scrollTop = answerDiv.scrollHeight;
@@ -344,16 +455,16 @@
         }
 
         function renderMessage(message, suffix) {
-            const {role, content} = message;
+            const { role, content } = message;
 
-            if(!role || !content) {
+            if (!role || !content) {
                 return;
             }
 
             const answerParagraph = document.createElement('p');
             answerParagraph.classList.add('chat-bubble', message?.role);
             answerParagraph.innerHTML += message?.content.replace(/\n/g, '<br />');
-            if(suffix) {
+            if (suffix) {
                 answerParagraph.innerHTML += `<br /><span class="message-suffix">${suffix}</span>`;
             }
             answerDiv.append(answerParagraph);
@@ -390,12 +501,17 @@
                 usersSelect.innerHTML += `<option value="${u.name}">${u.name}</option>`;
             });
         }
-		
-		document.addEventListener('keydown', (event) => {
-			if(event.ctrlKey && event.key == "Enter") {
-			callWebService();
-		  }
-		});		
+
+        function toggleSidebar() {
+            document.querySelector(".sidebar").classList.toggle("open");
+            document.querySelector(".sidebar-overlay").classList.toggle("open");
+        }
+
+        document.addEventListener('keydown', (event) => {
+            if (event.ctrlKey && event.key == "Enter") {
+                sendChat();
+            }
+        });
     </script>
 
 </body>
