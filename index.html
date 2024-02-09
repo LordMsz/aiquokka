@@ -6,6 +6,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="manifest" href="manifest.json">
     <link rel="icon" type="image/x-icon" href="/img/aiquokka.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Color+Emoji&family=Noto+Sans:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet">
     <style>
         * {
             box-sizing: border-box;
@@ -20,6 +23,13 @@
             flex-direction: column;
             margin: 0;
             background-color: #F3F4F6;
+
+            font-family: 'Noto Sans', sans-serif;
+            font-size: 15px;
+        }
+
+        .emoji {
+            font-family: 'Noto Color Emoji', sans-serif;
         }
 
         h1 {
@@ -260,7 +270,7 @@
 
 <body>
     <header>
-        <button onclick="toggleSidebar()" title="Display settings">☰</button>
+        <button class="emoji" onclick="toggleSidebar()" title="Display settings">☰</button>
         <div>
             <h1><img src="img/aiquokka.png" style="height: 1em;" /> AI Quokka, Yet Another OpenAI API client</h1>
             <q><em>...for Quokkas are known for their cheerful demeanor</em> - ChatGPT 3.5</q>
@@ -271,8 +281,8 @@
             <div id="answer"></div>
             <div class="inputs">
                 <textarea id="mainInput" autofocus oninput="this.style.height=''; this.style.height=this.scrollHeight + 'px'"></textarea>
-                <button id="chat" onclick="sendChat()" title="Send message to chat">▶️</button>
-                <button id="image" onclick="generateImage()" title="Generate image">🌄</button>
+                <button class="emoji" id="chat" onclick="sendChat()" title="Send message to chat">💬</button>
+                <button class="emoji" id="image" onclick="generateImage()" title="Generate image">🌄</button>
             </div>
         </div>
     </div>
@@ -282,8 +292,8 @@
             <label for="userSelect">Select user</label>
             <select id="userSelect" name="userSelect" onchange="setCurrentUser();">
             </select>
-            <button onclick="addUser();">✨ Add user</button>
-            <button onclick="clearUsers()">🗑️ Clear users</button>
+            <button class="emoji" onclick="addUser();">✨ Add user</button>
+            <button class="emoji" onclick="clearUsers()">🗑️ Clear users</button>
         </div>
         <div class="params">
             <div>
