@@ -245,6 +245,19 @@
             background-color: #b7bde1;
         }
 
+        #chatsHistory p button {
+            float: right;
+            line-height: 2em;
+            padding: 0.2em 1em;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        #chatsHistory p button:hover {
+            background-color: #e4e4e4;
+        }
+
         select {
             width: 10em;
         }
@@ -601,8 +614,14 @@
             const query = store.getAll();
             query.onsuccess = () => {
                 query.result?.forEach(ch => {
+                    const deleteBtn = document.createElement('button');
+                    deleteBtn.classList.add('emoji');
+                    deleteBtn.innerText = '❌';
+                    deleteBtn.onclick = (e) => { e.preventDefault(); e.stopPropagation(); onChatHistoryDelete(ch); return false; };
+
                     const chatHistoryPar = document.createElement('p');
-                    chatHistoryPar.innerHTML = `[${ch.id}]: ${ch.name} (${ch?.conversationHistory?.length})`;
+                    chatHistoryPar.innerHTML = `<span>${ch.name} (${ch?.conversationHistory?.length}, [id: ${ch.id}])</span>`;
+                    chatHistoryPar.append(deleteBtn);
                     chatHistoryPar.onclick = () => { onChatHistorySelect(ch); };
 
                     chatsHistoryContainer.append(chatHistoryPar);
@@ -627,6 +646,30 @@
             currentChat.conversationHistory?.forEach(ch => {
                 renderMessage(ch);
             });
+        }
+
+        function onChatHistoryDelete(chatHistoryItem) {
+            if(!chatHistoryItem?.id) {
+                renderChatsHistory();
+                return;
+            }
+
+            if(!confirm(`Are you sure you want to delete chat ${chatHistoryItem.name} (id: ${chatHistoryItem.id})?`)) {
+                return;
+            }
+
+            const t = db.transaction('chats', 'readwrite');
+            const store = t.objectStore('chats');
+
+            const query = store.delete(chatHistoryItem.id);
+            query.onsuccess = () => {
+                console.warn(`Chat Id ${chatHistoryItem.id} deleted`, chatHistoryItem);
+                renderChatsHistory();
+            };
+            query.onerror = (e) => {
+                console.error('Failed to delete chat from IndexedDB', error);
+                alert('Failed to delete chat from IndexedDB, see console');
+            };
         }
 
         function saveCurrentChat() {
