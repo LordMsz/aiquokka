@@ -144,6 +144,7 @@
 
         header {
             display: flex;
+            align-items: center;
         }
 
         header button {
@@ -156,6 +157,10 @@
 
         header button:hover {
             background-color: #e4e4e4;
+        }
+
+        header #chatName {
+            margin-right: auto;
         }
 
         .sidebar {
@@ -228,22 +233,41 @@
             background-color: #e4e4e4;
         }
 
+        #chatsHistory p {
+            margin: 0.4em;
+            padding: 1em 0.6em;
+            cursor: pointer;
+            background: #b7d3e1;
+            border-radius: 8px;
+        }
+
+        #chatsHistory p:hover {
+            background-color: #b7bde1;
+        }
+
         select {
             width: 10em;
         }
 
         /* Responsive styles */
         @media screen and (max-width: 1024px) {
-
+            header h1 {
+                font-size: 1.6em;
+            }
         }
 
-        @media screen and (max-width: 640px) {
-            h1 {
+        @media screen and (max-width: 800px) {
+            header div h1 {
                 display: none;
             }
 
-            h1+q {
+            header div h1+q {
                 display: none;
+            }
+
+            header>h1 {
+                font-size: 1.6em;
+                line-height: 1.9em;
             }
 
             #answer .tokens-usage .usage {
@@ -268,9 +292,10 @@
     <title>AI Quokka, Yet Another OpenAI API client</title>
 </head>
 
-<body>
+<body onload="init()">
     <header>
         <button class="emoji" onclick="toggleSidebar()" title="Display settings">☰</button>
+        <h1 id="chatName"></h1>
         <div>
             <h1><img src="img/aiquokka.png" style="height: 1em;" /> AI Quokka, Yet Another OpenAI API client</h1>
             <q><em>...for Quokkas are known for their cheerful demeanor</em> - ChatGPT 3.5</q>
@@ -320,22 +345,84 @@
             <label for="imageDisableRevisedPromptCb">Disable revised prompt (Dall-e 3)</label>
             <input type="checkbox" id="imageDisableRevisedPromptCb" name="imageDisableRevisedPromptCb" />
         </div>
+        <h1>Your conversations</h1>
+        <div id="chatsHistory"></div>
     </div>
     <h2 id="loading" style="visibility: hidden;">Loading...</h2>
 
     <script>
         const localStorageUsersKey = 'localStorageUsersKey';
-        const usersSelect = document.getElementById('userSelect');
+        let usersSelect = null;
 
-        let users = JSON.parse(localStorage.getItem(localStorageUsersKey)) ?? [];
+        let users = null;
         let currentUser = null;
-        updateUsers();
 
-        const conversationHistory = [];
+        let loadingElement = null;
+        let mainInput = null;
+        let answerDiv = null;
 
-        const loadingElement = document.getElementById('loading');
-        const mainInput = document.getElementById('mainInput');
-        const answerDiv = document.getElementById('answer');
+        let chatsHistoryContainer = null;
+        let chatNameHeader = null;
+
+        let db = null;
+        let currentChat = { name: '*New chat*', conversationHistory: [] };
+
+        function init() {
+            usersSelect = document.getElementById('userSelect');
+            loadingElement = document.getElementById('loading');
+            mainInput = document.getElementById('mainInput');
+            answerDiv = document.getElementById('answer');
+            chatsHistoryContainer = document.getElementById('chatsHistory');
+            chatNameHeader = document.getElementById('chatName');
+
+            users = JSON.parse(localStorage.getItem(localStorageUsersKey)) ?? [];
+
+            document.addEventListener('keydown', (event) => {
+                if (event.ctrlKey && event.key == "Enter") {
+                    sendChat();
+                }
+            });
+
+            updateUsers();
+            renderChatName();
+
+            const conn = indexedDB.open('quokkaDb', 2);
+
+            conn.onupgradeneeded = (e) => {
+                db = conn.result;
+                const oldVersion = e.oldVersion;
+
+                console.log(`Upgrading IndexedDB from oldVersion ${oldVersion} to version ${db.version}`);
+
+                if (oldVersion < 1) {
+                    // Initial schema
+                    db.createObjectStore('chats', { keyPath: 'id' });
+                    console.log('IndexedDB schema v1 applied');
+                }
+
+                if (oldVersion < 2) { // v1 -> v2
+                    db.deleteObjectStore('chats');
+                    db.createObjectStore('chats', { keyPath: 'id', autoIncrement: true });
+                    console.log('IndexedDB schema v2 applied, all data wiped, no migration');
+                }
+
+                if (oldVersion < 3) { // v2 -> v3
+                    //TODO //const index = store.createIndex
+                }
+            };
+
+            conn.onsuccess = () => {
+                db = conn.result;
+                console.log('IndexedDB opened successfully, conversations will be recorded');
+
+                renderChatsHistory();
+            };
+
+            conn.onerror = (e) => {
+                console.error("IndexedDB opening failed, some functionality may be broken!", e);
+                alert("Failed to open IndexedDB, see console");
+            };
+        }
 
         function sendChat() {
             if (!currentUser) {
@@ -349,13 +436,15 @@
                 role: 'user',
                 content: prompt,
             };
-            conversationHistory.push(newMessage);
+            currentChat.conversationHistory.push(newMessage);
+            saveCurrentChat();
             renderMessage(newMessage);
+            answerDiv.scrollTop = answerDiv.scrollHeight;
 
             const apiUrl = 'https://api.openai.com/v1/chat/completions';
             const requestData = {
                 model: 'gpt-4',
-                messages: conversationHistory,
+                messages: currentChat.conversationHistory,
                 temperature: 1,
                 max_tokens: +tokensLimitInput?.value || 1024,
                 top_p: 1,
@@ -385,7 +474,8 @@
 
                     data?.choices?.forEach(choice => {
                         renderMessage(choice?.message, `Finish reason: ${choice?.finish_reason}`);
-                        conversationHistory.push({ role: choice?.message?.role, content: choice?.message?.content });
+                        currentChat.conversationHistory.push({ role: choice?.message?.role, content: choice?.message?.content });
+                        saveCurrentChat();
                         mainInput.value = '';
                     });
                     answerDiv.scrollTop = answerDiv.scrollHeight;
@@ -502,16 +592,77 @@
             });
         }
 
+        function renderChatsHistory() {
+            chatsHistoryContainer.innerHTML = '';
+
+            const t = db.transaction('chats', 'readonly');
+            const store = t.objectStore('chats');
+
+            const query = store.getAll();
+            query.onsuccess = () => {
+                query.result?.forEach(ch => {
+                    const chatHistoryPar = document.createElement('p');
+                    chatHistoryPar.innerHTML = `[${ch.id}]: ${ch.name} (${ch?.conversationHistory?.length})`;
+                    chatHistoryPar.onclick = () => { onChatHistorySelect(ch); };
+
+                    chatsHistoryContainer.append(chatHistoryPar);
+                });
+            };
+            query.onerror = (e) => {
+                console.error('Failed to get chats history from IndexedDB', error);
+                alert('Failed to get chats history from IndexedDB, see console');
+            };
+        }
+
+        function renderChatName() {
+            chatNameHeader.innerText = currentChat.name;
+        }
+
+        function onChatHistorySelect(chatHistoryItem) {
+            toggleSidebar();
+            currentChat = chatHistoryItem;
+            renderChatName();
+
+            answerDiv.innerHTML = '';
+            currentChat.conversationHistory?.forEach(ch => {
+                renderMessage(ch);
+            });
+        }
+
+        function saveCurrentChat() {
+            if (!currentChat) {
+                return;
+            }
+
+            if (!currentChat.id || currentChat.id <= 0) {
+                //new chat, save
+                const name = prompt('Provide name for this chat please');
+                currentChat.name = name;
+                renderChatName();
+            }
+
+            const t = db.transaction('chats', 'readwrite');
+            const store = t.objectStore('chats');
+
+            const saveQuery = store.put(currentChat);
+
+            saveQuery.onsuccess = (event) => {
+                currentChat.id = saveQuery.result;
+                console.log(`Chat Id ${currentChat.id} saved`, currentChat);
+
+                renderChatsHistory();
+            };
+            saveQuery.onerror = (e) => {
+                console.error('Failed to save chat into IndexedDB', e);
+                alert('Failed to save chat into IndexedDB, see console');
+            };
+        }
+
         function toggleSidebar() {
+            renderChatsHistory();
             document.querySelector(".sidebar").classList.toggle("open");
             document.querySelector(".sidebar-overlay").classList.toggle("open");
         }
-
-        document.addEventListener('keydown', (event) => {
-            if (event.ctrlKey && event.key == "Enter") {
-                sendChat();
-            }
-        });
     </script>
 
 </body>
