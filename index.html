@@ -712,6 +712,45 @@
                     sendChat();
                 }
             });
+
+            handleSwipe(document.body, (distance) => {
+                // swipe right
+                if (distance > 100) {
+                    toggleSidebar();
+                }
+
+                // swipe left
+                if (distance < -100) {
+                    toggleSidebar();
+                }
+            });
+
+            handleSwipe(mainInput, (distance, event) => {
+                // swipe right
+                if (distance > 100) {
+                    sendChat();
+                    event.stopPropagation();
+                }
+            });
+        }
+
+        function handleSwipe(targetElement, callback) {
+            let touchStartX = 0;
+            let touchEndX = 0;
+
+            targetElement.addEventListener('touchstart', (event) => {
+                touchStartX = event.changedTouches?.[0]?.screenX;
+                touchEndX = touchStartX; // prevent issue with taps, no touchmove event
+            });
+
+            targetElement.addEventListener('touchmove', (event) => {
+                touchEndX = event.changedTouches?.[0]?.screenX;
+            }, { passive: true });
+
+            targetElement.addEventListener('touchend', (event) => {
+                const distance = touchEndX - touchStartX; // warning: NaN if no changedTouches
+                callback(distance, event);
+            });
         }
     </script>
 
