@@ -8,13 +8,16 @@
     <link rel="icon" type="image/x-icon" href="/img/aiquokka.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Color+Emoji&family=Noto+Sans:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Noto+Color+Emoji&family=Noto+Sans:ital,wght@0,400;0,700;1,400;1,700&display=swap"
+        rel="stylesheet">
     <style>
         * {
             box-sizing: border-box;
         }
 
-        html, body {
+        html,
+        body {
             height: 100%;
         }
 
@@ -63,7 +66,8 @@
             display: flex;
             flex-direction: column;
             flex: 1 100px;
-            padding: 0 8px; /* for arrows */
+            /* for arrows */
+            padding: 0 8px;
             overflow: auto;
         }
 
@@ -318,7 +322,8 @@
         <div class="main">
             <div id="answer"></div>
             <div class="inputs">
-                <textarea id="mainInput" autofocus oninput="this.style.height=''; this.style.height=this.scrollHeight + 'px'"></textarea>
+                <textarea id="mainInput" autofocus
+                    oninput="this.style.height=''; this.style.height=this.scrollHeight + 'px'"></textarea>
                 <button class="emoji" id="chat" onclick="sendChat()" title="Send message to chat">💬</button>
                 <button class="emoji" id="image" onclick="generateImage()" title="Generate image">🌄</button>
             </div>
@@ -365,23 +370,21 @@
 
     <script>
         const localStorageUsersKey = 'localStorageUsersKey';
-        let usersSelect = null;
-
         let users = null;
         let currentUser = null;
-
-        let loadingElement = null;
-        let mainInput = null;
-        let answerDiv = null;
-
-        let chatsHistoryContainer = null;
-        let chatNameHeader = null;
 
         let db = null;
         let currentChat = { name: '*New chat*', conversationHistory: [] };
 
+        let userSelect = null;
+        let loadingElement = null;
+        let mainInput = null;
+        let answerDiv = null;
+        let chatsHistoryContainer = null;
+        let chatNameHeader = null;
+
         function init() {
-            usersSelect = document.getElementById('userSelect');
+            userSelect = document.getElementById('userSelect');
             loadingElement = document.getElementById('loading');
             mainInput = document.getElementById('mainInput');
             answerDiv = document.getElementById('answer');
@@ -390,11 +393,7 @@
 
             users = JSON.parse(localStorage.getItem(localStorageUsersKey)) ?? [];
 
-            document.addEventListener('keydown', (event) => {
-                if (event.ctrlKey && event.key == "Enter") {
-                    sendChat();
-                }
-            });
+            handleEvents();
 
             updateUsers();
             renderChatName();
@@ -594,14 +593,14 @@
         }
 
         function setCurrentUser() {
-            currentUser = users.find(u => u.name === usersSelect.value);
+            currentUser = users.find(u => u.name === userSelect.value);
         }
 
         function renderUsers() {
-            usersSelect.innerHTML = '';
+            userSelect.innerHTML = '';
 
             users?.forEach(u => {
-                usersSelect.innerHTML += `<option value="${u.name}">${u.name}</option>`;
+                userSelect.innerHTML += `<option value="${u.name}">${u.name}</option>`;
             });
         }
 
@@ -649,12 +648,12 @@
         }
 
         function onChatHistoryDelete(chatHistoryItem) {
-            if(!chatHistoryItem?.id) {
+            if (!chatHistoryItem?.id) {
                 renderChatsHistory();
                 return;
             }
 
-            if(!confirm(`Are you sure you want to delete chat ${chatHistoryItem.name} (id: ${chatHistoryItem.id})?`)) {
+            if (!confirm(`Are you sure you want to delete chat ${chatHistoryItem.name} (id: ${chatHistoryItem.id})?`)) {
                 return;
             }
 
@@ -705,6 +704,14 @@
             renderChatsHistory();
             document.querySelector(".sidebar").classList.toggle("open");
             document.querySelector(".sidebar-overlay").classList.toggle("open");
+        }
+
+        function handleEvents() {
+            document.addEventListener('keydown', (event) => {
+                if (event.ctrlKey && event.key == "Enter") {
+                    sendChat();
+                }
+            });
         }
     </script>
 
