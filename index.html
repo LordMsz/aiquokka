@@ -35,7 +35,8 @@
             font-family: 'Noto Color Emoji', sans-serif;
         }
 
-        h1 {
+        h1,
+        h2 {
             margin: 0;
         }
 
@@ -204,12 +205,15 @@
 
         .params {
             display: flex;
-            justify-content: flex-end;
             flex-wrap: wrap;
         }
 
         .params label {
             margin-left: 0.5em;
+        }
+
+        .params input[type="number"] {
+            width: 6em;
         }
 
         .inputs {
@@ -338,11 +342,26 @@
             <button class="emoji" onclick="addUser();">✨ Add user</button>
             <button class="emoji" onclick="clearUsers()">🗑️ Clear users</button>
         </div>
+        <h1>Parameters</h1>
+        <h2>Chat</h2>
         <div class="params">
+            <div>
+                <label for="chatModelSelect">Chat Model</label>
+                <select id="chatModelSelect" name="chatModelSelect">
+                    <option value="gpt-4-turbo-preview">gpt-4-turbo-preview</option>
+                    <option value="gpt-4">gpt-4</option>
+                    <option value="gpt-3.5-turbo">gpt-3.5-turbo</option>
+                    <option value="gpt-4-vision-preview">gpt-4-vision-preview</option>
+                    <option value="gpt-4-32k">gpt-4-32k</option>
+                </select>
+            </div>
             <div>
                 <label for="tokensLimitInput">Completion limit</label>
                 <input type="number" id="tokensLimitInput" name="tokensLimitInput" value="1024" />
             </div>
+        </div>
+        <h2>Image</h2>
+        <div class="params">
             <div>
                 <label for="imageModelSelect">Image Model</label>
                 <select id="imageModelSelect" name="imageModelSelect">
@@ -360,8 +379,10 @@
                     <option value="256x256">256x256 (Dall-e 2)</option>
                 </select>
             </div>
-            <label for="imageDisableRevisedPromptCb">Disable revised prompt (Dall-e 3)</label>
-            <input type="checkbox" id="imageDisableRevisedPromptCb" name="imageDisableRevisedPromptCb" />
+            <div>
+                <label for="imageDisableRevisedPromptCb">Disable revised prompt (Dall-e 3)</label>
+                <input type="checkbox" id="imageDisableRevisedPromptCb" name="imageDisableRevisedPromptCb" />
+            </div>
         </div>
         <h1>Your conversations</h1>
         <div id="chatsHistory"></div>
@@ -382,6 +403,8 @@
         let answerDiv = null;
         let chatsHistoryContainer = null;
         let chatNameHeader = null;
+        let tokensLimitInput = null;
+        let chatModelSelect = null;
 
         function init() {
             userSelect = document.getElementById('userSelect');
@@ -390,6 +413,8 @@
             answerDiv = document.getElementById('answer');
             chatsHistoryContainer = document.getElementById('chatsHistory');
             chatNameHeader = document.getElementById('chatName');
+            tokensLimitInput = document.getElementById('tokensLimitInput');
+            chatModelSelect = document.getElementById('chatModelSelect');
 
             users = JSON.parse(localStorage.getItem(localStorageUsersKey)) ?? [];
 
@@ -442,7 +467,6 @@
                 return;
             }
 
-            const tokensLimitInput = document.getElementById('tokensLimitInput');
             const prompt = mainInput.value;
             const newMessage = {
                 role: 'user',
@@ -455,7 +479,7 @@
 
             const apiUrl = 'https://api.openai.com/v1/chat/completions';
             const requestData = {
-                model: 'gpt-4',
+                model: chatModelSelect.value,
                 messages: currentChat.conversationHistory,
                 temperature: 1,
                 max_tokens: +tokensLimitInput?.value || 1024,
