@@ -35,7 +35,8 @@
             font-family: 'Noto Color Emoji', sans-serif;
         }
 
-        h1, h2 {
+        h1,
+        h2 {
             margin: 0;
         }
 
@@ -341,6 +342,16 @@
         <h2>Chat</h2>
         <div class="params">
             <div>
+                <label for="chatModelSelect">Chat Model</label>
+                <select id="chatModelSelect" name="chatModelSelect">
+                    <option value="gpt-4-turbo-preview">gpt-4-turbo-preview</option>
+                    <option value="gpt-4">gpt-4</option>
+                    <option value="gpt-3.5-turbo">gpt-3.5-turbo</option>
+                    <option value="gpt-4-vision-preview">gpt-4-vision-preview</option>
+                    <option value="gpt-4-32k">gpt-4-32k</option>
+                </select>
+            </div>
+            <div>
                 <label for="tokensLimitInput">Completion limit</label>
                 <input type="number" id="tokensLimitInput" name="tokensLimitInput" value="1024" />
             </div>
@@ -388,6 +399,8 @@
         let answerDiv = null;
         let chatsHistoryContainer = null;
         let chatNameHeader = null;
+        let tokensLimitInput = null;
+        let chatModelSelect = null;
 
         function init() {
             userSelect = document.getElementById('userSelect');
@@ -396,6 +409,8 @@
             answerDiv = document.getElementById('answer');
             chatsHistoryContainer = document.getElementById('chatsHistory');
             chatNameHeader = document.getElementById('chatName');
+            tokensLimitInput = document.getElementById('tokensLimitInput');
+            chatModelSelect = document.getElementById('chatModelSelect');
 
             users = JSON.parse(localStorage.getItem(localStorageUsersKey)) ?? [];
 
@@ -448,7 +463,6 @@
                 return;
             }
 
-            const tokensLimitInput = document.getElementById('tokensLimitInput');
             const prompt = mainInput.value;
             const newMessage = {
                 role: 'user',
@@ -461,7 +475,7 @@
 
             const apiUrl = 'https://api.openai.com/v1/chat/completions';
             const requestData = {
-                model: 'gpt-4',
+                model: chatModelSelect.value,
                 messages: currentChat.conversationHistory,
                 temperature: 1,
                 max_tokens: +tokensLimitInput?.value || 1024,
