@@ -326,6 +326,7 @@
                     oninput="this.style.height=''; this.style.height=this.scrollHeight + 'px'"></textarea>
                 <button class="emoji" id="chat" onclick="sendChat()" title="Send message to chat">💬</button>
                 <button class="emoji" id="image" onclick="generateImage()" title="Generate image">🌄</button>
+                <button onclick="handleServerSentEventsAlternative()">SSE test</button>
             </div>
         </div>
     </div>
@@ -751,6 +752,104 @@
                 const distance = touchEndX - touchStartX; // warning: NaN if no changedTouches
                 callback(distance, event);
             });
+        }
+
+        // handle server sent events that would get answers from openai API; it shouldn't be commented out; it should accept token by token and render it
+        function handleServerSentEvents() {
+            const requestData = {
+                model: 'gpt-4',
+                messages: [{ role: 'user', content: 'Hello, AI!' }],
+                temperature: 1,
+                max_tokens: +tokensLimitInput?.value || 1024,
+                top_p: 1,
+                frequency_penalty: 0,
+                presence_penalty: 0,
+                stream: true,
+            };
+            const headers = {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${currentUser.openAIToken}`,
+            };
+
+            // following doesn't work, EventSource doesn't support headers and body
+            const url = 'https://api.openai.com/v1/chat/completions' + '?' + new URLSearchParams({ authorization: headers.Authorization });
+            const eventSource = new EventSource(url, {
+                headers: headers,
+                body: JSON.stringify(requestData),
+            });
+            eventSource.onerror = (event) => {
+                console.error('Server sent event error:', event);
+            };
+            eventSource.onmessage = (event) => {
+                console.log('Server sent event:', event);
+            };
+        }
+
+        // write an alternative function to handle server sent events that would get answers from openai API; it should use fetch and async/await
+        async function handleServerSentEventsAlternative() {
+            const requestData = {
+                model: 'gpt-4',
+                messages: [{ role: 'user', content: 'Hello, AI!' }],
+                temperature: 1,
+                max_tokens: +tokensLimitInput?.value || 1024,
+                top_p: 1,
+                frequency_penalty: 0,
+                presence_penalty: 0,
+                stream: true,
+            };
+            const headers = {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${currentUser.openAIToken}`,
+            };
+
+            const apiUrl = 'https://api.openai.com/v1/chat/completions';
+            const response = await fetch(apiUrl, {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify(requestData),
+            });
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+
+            let raws = '';
+
+            // read the reader chunk by chunk and decode it and log it
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) {
+                    break;
+                }
+                const text = decoder.decode(value);
+                raws += text + '|';
+
+                try {
+                    // example text looks as following:
+                    // data: {"id":"chatcmpl-8rCdULVjLXWvk9ayEHVSTnlYPSiXO","object":"chat.completion.chunk","created":1707690648,"model":"gpt-4-0613","system_fingerprint":null,"choices":[{"index":0,"delta":{"content":"Hello"},"logprobs":null,"finish_reason":null}]}
+                    // it can't be parsed as simply as JSON.parse(text) because it's not a valid JSON
+                    // it can also have multiple such lines in one chunk
+                    // so we need a regex to extract the JSONs from the chunk
+                    const jsonTexts = text.match(/(?<=data: )(.*)/g);
+                    if (jsonTexts) {
+                        jsonTexts.forEach(jsonText => {
+                            try {
+                                const json = JSON.parse(jsonText);
+                                json.choices.forEach(choice => {
+                                    console.log(choice.delta.content);
+                                });
+                            } catch (error) {
+                                console.error('Error parsing JSON:', error);
+                            }
+                        });
+                    }
+
+                } catch (error) {
+                    console.error('Error parsing JSON:', error);
+                    console.log('Server sent event RAWs:', raws);
+                }
+            }
+
+            console.log('Server sent event RAWs:', raws);
         }
     </script>
 
