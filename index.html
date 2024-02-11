@@ -35,7 +35,7 @@
             font-family: 'Noto Color Emoji', sans-serif;
         }
 
-        h1 {
+        h1, h2 {
             margin: 0;
         }
 
@@ -204,7 +204,6 @@
 
         .params {
             display: flex;
-            justify-content: flex-end;
             flex-wrap: wrap;
         }
 
@@ -338,11 +337,16 @@
             <button class="emoji" onclick="addUser();">✨ Add user</button>
             <button class="emoji" onclick="clearUsers()">🗑️ Clear users</button>
         </div>
+        <h1>Parameters</h1>
+        <h2>Chat</h2>
         <div class="params">
             <div>
                 <label for="tokensLimitInput">Completion limit</label>
                 <input type="number" id="tokensLimitInput" name="tokensLimitInput" value="1024" />
             </div>
+        </div>
+        <h2>Image</h2>
+        <div class="params">
             <div>
                 <label for="imageModelSelect">Image Model</label>
                 <select id="imageModelSelect" name="imageModelSelect">
@@ -360,8 +364,10 @@
                     <option value="256x256">256x256 (Dall-e 2)</option>
                 </select>
             </div>
-            <label for="imageDisableRevisedPromptCb">Disable revised prompt (Dall-e 3)</label>
-            <input type="checkbox" id="imageDisableRevisedPromptCb" name="imageDisableRevisedPromptCb" />
+            <div>
+                <label for="imageDisableRevisedPromptCb">Disable revised prompt (Dall-e 3)</label>
+                <input type="checkbox" id="imageDisableRevisedPromptCb" name="imageDisableRevisedPromptCb" />
+            </div>
         </div>
         <h1>Your conversations</h1>
         <div id="chatsHistory"></div>
