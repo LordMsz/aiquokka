@@ -492,7 +492,7 @@
                 Authorization: `Bearer ${currentUser.openAIToken}`,
             };
 
-            loadingElement.style.visibility = 'visible';
+            setLoading(true);
             fetch(apiUrl, {
                 method: 'POST',
                 headers: headers,
@@ -520,7 +520,7 @@
                     alert('An error occured, see console');
                     console.error('Error:', error);
                 }).finally(() => {
-                    loadingElement.style.visibility = 'hidden';
+                    setLoading(false);
                 });
         }
 
@@ -552,7 +552,7 @@
                 Authorization: `Bearer ${currentUser.openAIToken}`,
             };
 
-            loadingElement.style.visibility = 'visible';
+            setLoading(true);
             fetch(apiUrl, {
                 method: 'POST',
                 headers: headers,
@@ -576,7 +576,7 @@
                 .catch((error) => {
                     console.error('Error:', error);
                 }).finally(() => {
-                    loadingElement.style.visibility = 'hidden';
+                    setLoading(false);
                 });
         }
 
@@ -728,6 +728,11 @@
             renderChatsHistory();
             document.querySelector(".sidebar").classList.toggle("open");
             document.querySelector(".sidebar-overlay").classList.toggle("open");
+        }
+
+        function setLoading(isLoading) {
+            loadingElement.style.visibility = isLoading ? 'visible' : 'hidden';
+            mainInput.disabled = isLoading;
         }
 
         function handleEvents() {
