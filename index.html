@@ -729,6 +729,7 @@
             currentChat.conversationHistory?.forEach(ch => {
                 renderMessage(ch);
             });
+            answerDiv.scrollTop = answerDiv.scrollHeight;
         }
 
         function onChatHistoryDelete(chatHistoryItem) {
