@@ -355,7 +355,14 @@
             <button class="emoji" onclick="addUser();">✨ Add user</button>
             <button class="emoji" onclick="clearUsers()">🗑️ Clear users</button>
         </div>
-        <h1>Parameters <sup style="font-size: 0.5em;"><a href="https://platform.openai.com/docs/api-reference/chat/create" target="_blank">API reference</a></sup></h1>
+        <h1>
+            Parameters
+            <sup style="font-size: 0.5em;">
+                <a href="https://platform.openai.com/docs/api-reference/chat/create" target="_blank">
+                    API reference
+                </a>
+            </sup>
+        </h1>
         <h2>Chat</h2>
         <div class="params">
             <div>
@@ -439,12 +446,44 @@
     <h2 id="loading" style="visibility: hidden;">Loading...</h2>
 
     <script>
+        'use strict';
+
+        const QuokkaMessageTypes = {
+            chat: 'chat',
+            image: 'image'
+        };
+
+        class QuokkaMessage {
+            constructor(role, content, type) {
+                this.role = role;
+                this.content = content;
+                this.type = type;
+            }
+
+            toOpenAIModel() {
+                return {
+                    role: this.role,
+                    content: this.content
+                };
+            }
+        }
+
+        class QuokkaChat {
+            constructor(id, name, conversationHistory) {
+                if (id) {
+                    this.id = id;
+                }
+                this.name = name || '*New chat*';
+                this.conversationHistory = conversationHistory || [];
+            }
+        }
+
         const localStorageUsersKey = 'localStorageUsersKey';
         let users = null;
         let currentUser = null;
 
         let db = null;
-        let currentChat = { name: '*New chat*', conversationHistory: [] };
+        let currentChat = new QuokkaChat();
 
         let userSelect = null;
         let loadingElement = null;
@@ -527,10 +566,7 @@
             }
 
             const prompt = mainInput.value;
-            const newMessage = {
-                role: 'user',
-                content: prompt,
-            };
+            const newMessage = new QuokkaMessage('user', prompt, QuokkaMessageTypes.chat);
             currentChat.conversationHistory.push(newMessage);
             saveCurrentChat();
             renderMessage(newMessage);
@@ -539,7 +575,9 @@
             const apiUrl = 'https://api.openai.com/v1/chat/completions';
             const requestData = {
                 model: chatModelSelect.value,
-                messages: currentChat.conversationHistory,
+                messages: currentChat.conversationHistory
+                    .filter(m => m.type !== QuokkaMessageTypes.image)
+                    .map(m => m.toOpenAIModel()),
                 temperature: +temperatureInput?.value || 1,
                 max_tokens: +tokensLimitInput?.value || 1024,
                 top_p: +topPInput?.value || 1,
@@ -570,7 +608,7 @@
 
                     data?.choices?.forEach(choice => {
                         renderMessage(choice?.message, `Finish reason: ${choice?.finish_reason}`);
-                        currentChat.conversationHistory.push({ role: choice?.message?.role, content: choice?.message?.content });
+                        currentChat.conversationHistory.push(new QuokkaMessage(choice?.message?.role, choice?.message?.content, QuokkaMessageTypes.chat));
                         saveCurrentChat();
                         mainInput.value = '';
                     });
@@ -600,12 +638,19 @@
                 prompt = 'I NEED to test how the tool works with extremely simple prompts. DO NOT add any detail, just use it AS-IS: ' + prompt;
             }
 
+            const newMessage = new QuokkaMessage('user', prompt, QuokkaMessageTypes.image);
+            currentChat.conversationHistory.push(newMessage);
+            renderMessage(newMessage); // consider moving this into the class when pushing into the array
+            saveCurrentChat();
+            answerDiv.scrollTop = answerDiv.scrollHeight;
+
             const apiUrl = 'https://api.openai.com/v1/images/generations';
             const requestData = {
                 model: imageModelSelect.value,
                 prompt: prompt,
                 n: 1,
                 size: imageSizeSelect.value,
+                response_format: 'b64_json' // we have to use this format since fetch by URL is blocked by CORS when read by javascript
             };
             const headers = {
                 'Content-Type': 'application/json',
@@ -623,14 +668,21 @@
                     console.log(response);
 
                     response?.data?.forEach(img => {
-                        const answerParagraph = document.createElement('p');
-                        answerParagraph.innerHTML = `<img src="${img.url}" />`;
-                        answerDiv.append(answerParagraph);
+                        const blob = convertBase64ToBlob(img.b64_json, 'image/png');
+
+                        const permImageMessage = new QuokkaMessage('assistant', blob, QuokkaMessageTypes.image);
+                        renderMessage(permImageMessage);
+                        currentChat.conversationHistory.push(permImageMessage);
                         if (img.revised_prompt) {
-                            renderMessage({ role: 'assistant', content: `Revised prompt: <em>${img.revised_prompt}</em>` });
+                            const revisedPromptMessage = new QuokkaMessage('assistant', `Revised prompt: <em>${img.revised_prompt}</em>`, QuokkaMessageTypes.image);
+                            currentChat.conversationHistory.push(revisedPromptMessage);
+                            renderMessage(revisedPromptMessage);
                         }
+                        saveCurrentChat();
                     });
-                    answerDiv.scrollTop = answerDiv.scrollHeight;
+                    setTimeout(() => {
+                        answerDiv.scrollTop = answerDiv.scrollHeight;
+                    }, 1000);
                     mainInput.value = '';
                 })
                 .catch((error) => {
@@ -638,6 +690,16 @@
                 }).finally(() => {
                     setLoading(false);
                 });
+        }
+
+        function convertBase64ToBlob(base64, type) {
+            const byteCharacters = atob(base64);
+            const byteNumbers = new Array(byteCharacters.length);
+            for (let i = 0; i < byteCharacters.length; i++) {
+                byteNumbers[i] = byteCharacters.charCodeAt(i);
+            }
+            const byteArray = new Uint8Array(byteNumbers);
+            return new Blob([byteArray], { type: type });
         }
 
         function renderMessage(message, suffix) {
@@ -649,7 +711,13 @@
 
             const answerParagraph = document.createElement('p');
             answerParagraph.classList.add('chat-bubble', message?.role);
-            answerParagraph.innerHTML += message?.content.replace(/\n/g, '<br />');
+            if (message?.type === QuokkaMessageTypes.image && message?.role === 'assistant' && message?.content instanceof Blob) {
+                const img = document.createElement('img');
+                img.src = URL.createObjectURL(message?.content);
+                answerParagraph.append(img);
+            } else {
+                answerParagraph.innerHTML += message?.content.replace(/\n/g, '<br />');
+            }
             if (suffix) {
                 answerParagraph.innerHTML += `<br /><span class="message-suffix">${suffix}</span>`;
             }
@@ -722,14 +790,20 @@
 
         function onChatHistorySelect(chatHistoryItem) {
             toggleSidebar();
-            currentChat = chatHistoryItem;
+            currentChat = new QuokkaChat(
+                chatHistoryItem.id,
+                chatHistoryItem.name,
+                chatHistoryItem.conversationHistory?.map(m => new QuokkaMessage(m.role, m.content, m.type))
+            );
             renderChatName();
 
             answerDiv.innerHTML = '';
             currentChat.conversationHistory?.forEach(ch => {
                 renderMessage(ch);
             });
-            answerDiv.scrollTop = answerDiv.scrollHeight;
+            setTimeout(() => {
+                answerDiv.scrollTop = answerDiv.scrollHeight;
+            });
         }
 
         function onChatHistoryDelete(chatHistoryItem) {
