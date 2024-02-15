@@ -491,7 +491,7 @@
         }
 
         class QuokkaChat {
-            #observers = [];
+            #observers = []; // private to avoid storing in IndexedDB
             constructor(id, name, conversationHistory) {
                 if (id) {
                     this.id = id;
