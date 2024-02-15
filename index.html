@@ -355,7 +355,14 @@
             <button class="emoji" onclick="addUser();">✨ Add user</button>
             <button class="emoji" onclick="clearUsers()">🗑️ Clear users</button>
         </div>
-        <h1>Parameters <sup style="font-size: 0.5em;"><a href="https://platform.openai.com/docs/api-reference/chat/create" target="_blank">API reference</a></sup></h1>
+        <h1>
+            Parameters
+            <sup style="font-size: 0.5em;">
+                <a href="https://platform.openai.com/docs/api-reference/chat/create" target="_blank">
+                    API reference
+                </a>
+            </sup>
+        </h1>
         <h2>Chat</h2>
         <div class="params">
             <div>
@@ -439,12 +446,15 @@
     <h2 id="loading" style="visibility: hidden;">Loading...</h2>
 
     <script>
+        'use strict';
+
         const localStorageUsersKey = 'localStorageUsersKey';
         let users = null;
         let currentUser = null;
 
         let db = null;
-        let currentChat = { name: '*New chat*', conversationHistory: [] };
+        let currentChat = null;
+        let chatRenderer = null;
 
         let userSelect = null;
         let loadingElement = null;
@@ -459,6 +469,83 @@
         let frequencyPenaltyInput = null;
         let presencePenaltyInput = null;
         let seedInput = null;
+
+        const QuokkaMessageTypes = {
+            chat: 'chat',
+            image: 'image'
+        };
+
+        class QuokkaMessage {
+            constructor(role, content, type) {
+                this.role = role;
+                this.content = content;
+                this.type = type;
+            }
+
+            toOpenAIModel() {
+                return {
+                    role: this.role,
+                    content: this.content
+                };
+            }
+        }
+
+        class QuokkaChat {
+            #observers = []; // private to avoid storing in IndexedDB
+            constructor(id, name, conversationHistory) {
+                if (id) {
+                    this.id = id;
+                }
+                this.name = name || '*New chat*';
+                this.conversationHistory = conversationHistory || [];
+            }
+
+            addMessage(role, content, type, suffix) {
+                const newMessage = new QuokkaMessage(role, content, type);
+                this.conversationHistory.push(newMessage);
+                saveCurrentChat(); // TODO move
+                this.#observers.forEach(o => o.messageAdded?.(newMessage, suffix));
+            }
+
+            subscribe(observer) {
+                this.#observers.push(observer);
+            }
+        }
+
+        class QuokkaChatRenderer {
+            #chat = null;
+            #answerDiv = null;
+
+            constructor(chat, answerDiv) {
+                this.#chat = chat;
+                this.#answerDiv = answerDiv;
+
+                this.#chat.subscribe(this);
+
+                this.renderChat();
+            }
+
+            messageAdded(message, suffix) {
+                this.renderMessage(message, suffix); // TODO refactor suffix into message
+            }
+
+            renderChat() {
+                this.#answerDiv.innerHTML = '';
+                this.#chat.conversationHistory?.forEach(ch => {
+                    renderMessage(ch);
+                });
+                setTimeout(() => {
+                    this.#answerDiv.scrollTop = this.#answerDiv.scrollHeight;
+                });
+            }
+
+            renderMessage(message, suffix) {
+                renderMessage(message, suffix);
+                setTimeout(() => {
+                    this.#answerDiv.scrollTop = this.#answerDiv.scrollHeight;
+                });
+            }
+        }
 
         function init() {
             userSelect = document.getElementById('userSelect');
@@ -475,12 +562,15 @@
             presencePenaltyInput = document.getElementById('presencePenaltyInput');
             seedInput = document.getElementById('seedInput');
 
+            currentChat = new QuokkaChat();
+            chatRenderer = new QuokkaChatRenderer(currentChat, answerDiv);
+
             users = JSON.parse(localStorage.getItem(localStorageUsersKey)) ?? [];
 
             handleEvents();
 
             updateUsers();
-            renderChatName();
+            renderChatName(); // TODO move to QuokkaChatRenderer?
 
             const conn = indexedDB.open('quokkaDb', 2);
 
@@ -527,19 +617,14 @@
             }
 
             const prompt = mainInput.value;
-            const newMessage = {
-                role: 'user',
-                content: prompt,
-            };
-            currentChat.conversationHistory.push(newMessage);
-            saveCurrentChat();
-            renderMessage(newMessage);
-            answerDiv.scrollTop = answerDiv.scrollHeight;
+            currentChat.addMessage('user', prompt, QuokkaMessageTypes.chat);
 
             const apiUrl = 'https://api.openai.com/v1/chat/completions';
             const requestData = {
                 model: chatModelSelect.value,
-                messages: currentChat.conversationHistory,
+                messages: currentChat.conversationHistory
+                    .filter(m => m.type !== QuokkaMessageTypes.image)
+                    .map(m => m.toOpenAIModel()),
                 temperature: +temperatureInput?.value || 1,
                 max_tokens: +tokensLimitInput?.value || 1024,
                 top_p: +topPInput?.value || 1,
@@ -569,12 +654,9 @@
                     answerDiv.append(tokensUsedParagraph);
 
                     data?.choices?.forEach(choice => {
-                        renderMessage(choice?.message, `Finish reason: ${choice?.finish_reason}`);
-                        currentChat.conversationHistory.push({ role: choice?.message?.role, content: choice?.message?.content });
-                        saveCurrentChat();
-                        mainInput.value = '';
+                        currentChat.addMessage(choice?.message?.role, choice?.message?.content, QuokkaMessageTypes.chat, `Finish reason: ${choice?.finish_reason}`);
                     });
-                    answerDiv.scrollTop = answerDiv.scrollHeight;
+                    mainInput.value = '';
                 })
                 .catch((error) => {
                     alert('An error occured, see console');
@@ -600,12 +682,15 @@
                 prompt = 'I NEED to test how the tool works with extremely simple prompts. DO NOT add any detail, just use it AS-IS: ' + prompt;
             }
 
+            currentChat.addMessage('user', prompt, QuokkaMessageTypes.image);
+
             const apiUrl = 'https://api.openai.com/v1/images/generations';
             const requestData = {
                 model: imageModelSelect.value,
                 prompt: prompt,
                 n: 1,
                 size: imageSizeSelect.value,
+                response_format: 'b64_json' // we have to use this format since fetch by URL is blocked by CORS when read by javascript
             };
             const headers = {
                 'Content-Type': 'application/json',
@@ -623,14 +708,13 @@
                     console.log(response);
 
                     response?.data?.forEach(img => {
-                        const answerParagraph = document.createElement('p');
-                        answerParagraph.innerHTML = `<img src="${img.url}" />`;
-                        answerDiv.append(answerParagraph);
+                        const blob = convertBase64ToBlob(img.b64_json, 'image/png');
+
+                        currentChat.addMessage('assistant', blob, QuokkaMessageTypes.image);
                         if (img.revised_prompt) {
-                            renderMessage({ role: 'assistant', content: `Revised prompt: <em>${img.revised_prompt}</em>` });
+                            currentChat.addMessage('assistant', `Revised prompt: <em>${img.revised_prompt}</em>`, QuokkaMessageTypes.image);
                         }
                     });
-                    answerDiv.scrollTop = answerDiv.scrollHeight;
                     mainInput.value = '';
                 })
                 .catch((error) => {
@@ -640,16 +724,33 @@
                 });
         }
 
-        function renderMessage(message, suffix) {
-            const { role, content } = message;
+        function convertBase64ToBlob(base64, type) {
+            const byteCharacters = atob(base64);
+            const byteNumbers = new Array(byteCharacters.length);
+            for (let i = 0; i < byteCharacters.length; i++) {
+                byteNumbers[i] = byteCharacters.charCodeAt(i);
+            }
+            const byteArray = new Uint8Array(byteNumbers);
+            return new Blob([byteArray], { type: type });
+        }
 
-            if (!role || !content) {
+        function renderMessage(message, suffix) {
+            const { role, content = '', type } = message || {};
+
+            if (!role) {
+                console.warn('Invalid message, missing role', message);
                 return;
             }
 
             const answerParagraph = document.createElement('p');
-            answerParagraph.classList.add('chat-bubble', message?.role);
-            answerParagraph.innerHTML += message?.content.replace(/\n/g, '<br />');
+            answerParagraph.classList.add('chat-bubble', role);
+            if (type === QuokkaMessageTypes.image && role === 'assistant' && content instanceof Blob) {
+                const img = document.createElement('img');
+                img.src = URL.createObjectURL(content);
+                answerParagraph.append(img);
+            } else {
+                answerParagraph.innerHTML += content.replace(/\n/g, '<br />');
+            }
             if (suffix) {
                 answerParagraph.innerHTML += `<br /><span class="message-suffix">${suffix}</span>`;
             }
@@ -703,7 +804,9 @@
                     deleteBtn.onclick = (e) => { e.preventDefault(); e.stopPropagation(); onChatHistoryDelete(ch); return false; };
 
                     const chatHistoryPar = document.createElement('p');
-                    chatHistoryPar.innerHTML = `<span>${ch.name} (${ch?.conversationHistory?.length}, [id: ${ch.id}])</span>`;
+                    const numberOfMessages = ch?.conversationHistory?.filter(m => m.type === QuokkaMessageTypes.chat)?.length;
+                    const numberOfImages = ch?.conversationHistory?.filter(m => m.type === QuokkaMessageTypes.image)?.length;
+                    chatHistoryPar.innerHTML = `${ch.id}: <span>${ch.name} (${numberOfMessages} messages, ${numberOfImages} image messages)</span>`;
                     chatHistoryPar.append(deleteBtn);
                     chatHistoryPar.onclick = () => { onChatHistorySelect(ch); };
 
@@ -722,14 +825,13 @@
 
         function onChatHistorySelect(chatHistoryItem) {
             toggleSidebar();
-            currentChat = chatHistoryItem;
+            currentChat = new QuokkaChat(
+                chatHistoryItem.id,
+                chatHistoryItem.name,
+                chatHistoryItem.conversationHistory?.map(m => new QuokkaMessage(m.role, m.content, m.type))
+            );
+            chatRenderer = new QuokkaChatRenderer(currentChat, answerDiv);
             renderChatName();
-
-            answerDiv.innerHTML = '';
-            currentChat.conversationHistory?.forEach(ch => {
-                renderMessage(ch);
-            });
-            answerDiv.scrollTop = answerDiv.scrollHeight;
         }
 
         function onChatHistoryDelete(chatHistoryItem) {
