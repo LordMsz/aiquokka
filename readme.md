@@ -6,12 +6,6 @@ _...for Quokkas are known for their cheerful demeanor_  - ChatGPT 3.5
 
 [![Deploy web app to Azure Static Web Apps](https://github.com/LordMsz/aiquokka/actions/workflows/azure-staticwebapp.yml/badge.svg)](https://github.com/LordMsz/aiquokka/actions/workflows/azure-staticwebapp.yml) [Production link](https://gentle-river-0082c9d03.3.azurestaticapps.net/)
 
-## Table of Contents
-
-- [Idea](#idea)
-- [Getting started](#getting started)
-- [Contributing](#contributing)
-
 ## Idea
 
 _Let's create OpenAI client in single html page..._
