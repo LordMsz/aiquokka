@@ -271,6 +271,24 @@
             background-color: #e4e4e4;
         }
 
+        #storageStats .usage-bar-background {
+            position: relative;
+            width: 80%;
+            height: 1em;
+
+            margin: 0 auto;
+            background-color: lightgrey;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        #storageStats .usage-bar {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+        }
+
         select {
             width: 10em;
         }
@@ -442,6 +460,7 @@
         </div>
         <h1>Your conversations</h1>
         <div id="chatsHistory"></div>
+        <div id="storageStats"></div>
     </div>
     <h2 id="loading" style="visibility: hidden;">Loading...</h2>
 
@@ -461,6 +480,7 @@
         let mainInput = null;
         let answerDiv = null;
         let chatsHistoryContainer = null;
+        let storageStatsDiv = null;
         let chatNameHeader = null;
         let tokensLimitInput = null;
         let chatModelSelect = null;
@@ -553,6 +573,7 @@
             mainInput = document.getElementById('mainInput');
             answerDiv = document.getElementById('answer');
             chatsHistoryContainer = document.getElementById('chatsHistory');
+            storageStatsDiv = document.getElementById('storageStats');
             chatNameHeader = document.getElementById('chatName');
             tokensLimitInput = document.getElementById('tokensLimitInput');
             chatModelSelect = document.getElementById('chatModelSelect');
@@ -823,6 +844,27 @@
             chatNameHeader.innerText = currentChat.name;
         }
 
+        function renderStorageStats() {
+            if (navigator?.storage?.estimate) {
+                navigator.storage.estimate().then(estimate => {
+                    const formattedUsage = (estimate.usage / 1024 / 1024).toFixed(2);
+                    const formattedQuota = (estimate.quota / 1024 / 1024).toFixed(2);
+                    const warningThreshold = 200; // MB
+                    storageStatsDiv.innerHTML = `<p>Used storage: ~${formattedUsage} MB / ${warningThreshold} MB warning threshold / quota ${formattedQuota} MB</p>`;
+                    const usagePercentage = (estimate.usage / 1024 / 1024 / warningThreshold) * 100; // 200MB warning threshold
+
+                    const usageBarBackground = document.createElement('div');
+                    usageBarBackground.classList.add('usage-bar-background');
+                    const usageBar = document.createElement('div');
+                    usageBar.classList.add('usage-bar');
+                    usageBar.style.width = `${usagePercentage}%`;
+                    usageBar.style.backgroundColor = usagePercentage > 90 ? 'red' : usagePercentage > 50 ? 'orange' : 'green';
+                    usageBarBackground.append(usageBar);
+                    storageStatsDiv.append(usageBarBackground);
+                });
+            }
+        }
+
         function onChatHistorySelect(chatHistoryItem) {
             toggleSidebar();
             currentChat = new QuokkaChat(
@@ -889,6 +931,7 @@
 
         function toggleSidebar() {
             renderChatsHistory();
+            renderStorageStats();
             document.querySelector(".sidebar").classList.toggle("open");
             document.querySelector(".sidebar-overlay").classList.toggle("open");
         }
