@@ -553,13 +553,32 @@
             renderChat() {
                 this.#answerDiv.innerHTML = '';
                 this.#chat.conversationHistory?.forEach(ch => {
-                    renderMessage(ch);
+                    this.renderMessage(ch);
                 });
                 this.scrollToBottom();
             }
 
             renderMessage(message, suffix) {
-                renderMessage(message, suffix);
+                const { role, content = '', type } = message || {};
+
+                if (!role) {
+                    console.warn('Invalid message, missing role', message);
+                    return;
+                }
+
+                const answerParagraph = document.createElement('p');
+                answerParagraph.classList.add('chat-bubble', role);
+                if (type === QuokkaMessageTypes.image && role === 'assistant' && content instanceof Blob) {
+                    const img = document.createElement('img');
+                    img.src = URL.createObjectURL(content);
+                    answerParagraph.append(img);
+                } else {
+                    answerParagraph.innerHTML += content.replace(/\n/g, '<br />');
+                }
+                if (suffix) {
+                    answerParagraph.innerHTML += `<br /><span class="message-suffix">${suffix}</span>`;
+                }
+                this.#answerDiv.append(answerParagraph);
             }
 
             scrollToBottom() {
@@ -755,29 +774,6 @@
             }
             const byteArray = new Uint8Array(byteNumbers);
             return new Blob([byteArray], { type: type });
-        }
-
-        function renderMessage(message, suffix) {
-            const { role, content = '', type } = message || {};
-
-            if (!role) {
-                console.warn('Invalid message, missing role', message);
-                return;
-            }
-
-            const answerParagraph = document.createElement('p');
-            answerParagraph.classList.add('chat-bubble', role);
-            if (type === QuokkaMessageTypes.image && role === 'assistant' && content instanceof Blob) {
-                const img = document.createElement('img');
-                img.src = URL.createObjectURL(content);
-                answerParagraph.append(img);
-            } else {
-                answerParagraph.innerHTML += content.replace(/\n/g, '<br />');
-            }
-            if (suffix) {
-                answerParagraph.innerHTML += `<br /><span class="message-suffix">${suffix}</span>`;
-            }
-            answerDiv.append(answerParagraph);
         }
 
         function addUser() {
