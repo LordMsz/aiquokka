@@ -547,6 +547,7 @@
 
             messageAdded(message, suffix) {
                 this.renderMessage(message, suffix); // TODO refactor suffix into message
+                this.scrollToBottom();
             }
 
             renderChat() {
@@ -554,13 +555,14 @@
                 this.#chat.conversationHistory?.forEach(ch => {
                     renderMessage(ch);
                 });
-                setTimeout(() => {
-                    this.#answerDiv.scrollTop = this.#answerDiv.scrollHeight;
-                });
+                this.scrollToBottom();
             }
 
             renderMessage(message, suffix) {
                 renderMessage(message, suffix);
+            }
+
+            scrollToBottom() {
                 setTimeout(() => {
                     this.#answerDiv.scrollTop = this.#answerDiv.scrollHeight;
                 });
