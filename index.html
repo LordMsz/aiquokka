@@ -478,7 +478,6 @@
         let userSelect = null;
         let loadingElement = null;
         let mainInput = null;
-        let answerDiv = null;
         let chatsHistoryContainer = null;
         let storageStatsDiv = null;
         let chatNameHeader = null;
@@ -496,10 +495,18 @@
         };
 
         class QuokkaMessage {
-            constructor(role, content, type) {
+            constructor(role, content, type, model, tokenUsage, finishReason) {
                 this.role = role;
                 this.content = content;
                 this.type = type;
+                this.model = model;
+                this.finishReason = finishReason;
+
+                this.tokenUsage = tokenUsage ? {
+                    prompt_tokens: tokenUsage.prompt_tokens,
+                    completion_tokens: tokenUsage.completion_tokens,
+                    total_tokens: tokenUsage.total_tokens
+                } : null;
             }
 
             toOpenAIModel() {
@@ -516,15 +523,24 @@
                 if (id) {
                     this.id = id;
                 }
-                this.name = name || '*New chat*';
+                this._name = name || '*New chat*';
                 this.conversationHistory = conversationHistory || [];
             }
 
-            addMessage(role, content, type, suffix) {
-                const newMessage = new QuokkaMessage(role, content, type);
+            get name() {
+                return this._name;
+            }
+
+            set name(name) {
+                this._name = name;
+                this.#observers.forEach(o => o.nameChanged?.(name));
+            }
+
+            addMessage(role, content, type, model, tokenUsage, finishReason) {
+                const newMessage = new QuokkaMessage(role, content, type, model, tokenUsage, finishReason);
                 this.conversationHistory.push(newMessage);
                 saveCurrentChat(); // TODO move
-                this.#observers.forEach(o => o.messageAdded?.(newMessage, suffix));
+                this.#observers.forEach(o => o.messageAdded?.(newMessage));
             }
 
             subscribe(observer) {
@@ -536,31 +552,83 @@
             #chat = null;
             #answerDiv = null;
 
-            constructor(chat, answerDiv) {
-                this.#chat = chat;
+            constructor(answerDiv) {
                 this.#answerDiv = answerDiv;
+            }
 
+            // Observer methods
+            nameChanged(name) {
+                this.renderChatName();
+            }
+
+            messageAdded(message) {
+                this.renderMessage(message);
+                this.scrollToBottom();
+            }
+
+            // Renderer methods
+            selectChat(chat) {
+                this.#chat = chat;
                 this.#chat.subscribe(this);
 
+                this.renderChatName();
                 this.renderChat();
             }
 
-            messageAdded(message, suffix) {
-                this.renderMessage(message, suffix); // TODO refactor suffix into message
+            renderChatName() {
+                chatNameHeader.innerText = this.#chat.name;
             }
 
             renderChat() {
                 this.#answerDiv.innerHTML = '';
                 this.#chat.conversationHistory?.forEach(ch => {
-                    renderMessage(ch);
+                    this.renderMessage(ch);
                 });
-                setTimeout(() => {
-                    this.#answerDiv.scrollTop = this.#answerDiv.scrollHeight;
-                });
+                this.scrollToBottom();
             }
 
-            renderMessage(message, suffix) {
-                renderMessage(message, suffix);
+            renderMessage(message) {
+                const { role, content = '', type } = message || {};
+
+                if (!role) {
+                    console.warn('Invalid message, missing role', message);
+                    return;
+                }
+
+                this.renderTokenUsage(message);
+
+                const answerParagraph = document.createElement('p');
+                answerParagraph.classList.add('chat-bubble', role);
+                if (type === QuokkaMessageTypes.image && role === 'assistant' && content instanceof Blob) {
+                    const img = document.createElement('img');
+                    img.src = URL.createObjectURL(content);
+                    answerParagraph.append(img);
+                } else {
+                    answerParagraph.innerHTML += content.replace(/\n/g, '<br />');
+                }
+                if (message?.finishReason) {
+                    answerParagraph.innerHTML += `<br /><span class="message-suffix">Finish reason: ${message.finishReason}</span>`;
+                }
+                this.#answerDiv.append(answerParagraph);
+            }
+
+            renderTokenUsage(message) {
+                if (!message || !message.tokenUsage || !message.model) {
+                    return;
+                }
+
+                const tokensUsedParagraph = document.createElement('p');
+                tokensUsedParagraph.classList.add('tokens-usage');
+                tokensUsedParagraph.innerHTML += `<span class="model">Model: ${message.model}. </span>`;
+
+                const completionText = `✔️completion: ${message.tokenUsage.completion_tokens}`;
+                const promptText = `❔prompt: ${message.tokenUsage.prompt_tokens}`;
+                const totalText = `🟰total: ${message.tokenUsage.total_tokens}`;
+                tokensUsedParagraph.innerHTML += `<span class="usage">Tokens usage: ${completionText} ${promptText} ${totalText}</span>`;
+                this.#answerDiv.append(tokensUsedParagraph);
+            }
+
+            scrollToBottom() {
                 setTimeout(() => {
                     this.#answerDiv.scrollTop = this.#answerDiv.scrollHeight;
                 });
@@ -571,7 +639,6 @@
             userSelect = document.getElementById('userSelect');
             loadingElement = document.getElementById('loading');
             mainInput = document.getElementById('mainInput');
-            answerDiv = document.getElementById('answer');
             chatsHistoryContainer = document.getElementById('chatsHistory');
             storageStatsDiv = document.getElementById('storageStats');
             chatNameHeader = document.getElementById('chatName');
@@ -584,16 +651,16 @@
             seedInput = document.getElementById('seedInput');
 
             currentChat = new QuokkaChat();
-            chatRenderer = new QuokkaChatRenderer(currentChat, answerDiv);
+            chatRenderer = new QuokkaChatRenderer(document.getElementById('answer'));
+            chatRenderer.selectChat(currentChat);
 
             users = JSON.parse(localStorage.getItem(localStorageUsersKey)) ?? [];
 
             handleEvents();
 
             updateUsers();
-            renderChatName(); // TODO move to QuokkaChatRenderer?
 
-            const conn = indexedDB.open('quokkaDb', 2);
+            const conn = indexedDB.open('quokkaDb', 3);
 
             conn.onupgradeneeded = (e) => {
                 db = conn.result;
@@ -614,15 +681,30 @@
                 }
 
                 if (oldVersion < 3) { // v2 -> v3
-                    //TODO //const index = store.createIndex
+                    // change all chats to use _name instead of name
+                    const t = conn.transaction;
+                    const store = t.objectStore('chats');
+                    const query = store.getAll();
+                    query.onsuccess = () => {
+                        query.result?.forEach(ch => {
+                            ch._name = ch.name;
+                            delete ch.name;
+                            store.put(ch);
+                        });
+
+                        console.log('IndexedDB schema v3 applied, all data migrated');
+                    };
+                    query.onerror = (e) => {
+                        console.error('Failed to migrate chats to schema v3', error);
+                        alert('Failed to migrate chats to schema v3, see console');
+                        conn.transaction.abort();
+                    };
                 }
             };
 
             conn.onsuccess = () => {
                 db = conn.result;
                 console.log('IndexedDB opened successfully, conversations will be recorded');
-
-                renderChatsHistory();
             };
 
             conn.onerror = (e) => {
@@ -668,14 +750,10 @@
                 .then((data) => {
                     console.log(data);
 
-                    const tokensUsedParagraph = document.createElement('p');
-                    tokensUsedParagraph.classList.add('tokens-usage');
-                    tokensUsedParagraph.innerHTML += `<span class="model">Model: ${data.model}. </span>`;
-                    tokensUsedParagraph.innerHTML += `<span class="usage">Tokens usage: ✔️completion: ${data.usage.completion_tokens} ❔prompt: ${data.usage.prompt_tokens} 🟰total: ${data.usage.total_tokens}</span>`;
-                    answerDiv.append(tokensUsedParagraph);
-
-                    data?.choices?.forEach(choice => {
-                        currentChat.addMessage(choice?.message?.role, choice?.message?.content, QuokkaMessageTypes.chat, `Finish reason: ${choice?.finish_reason}`);
+                    data?.choices?.forEach((choice, index) => {
+                        const isFirst = index === 0;
+                        currentChat.addMessage(choice?.message?.role, choice?.message?.content, QuokkaMessageTypes.chat,
+                            isFirst ? data?.model : null, isFirst ? data?.usage : null, choice?.finish_reason);
                     });
                     mainInput.value = '';
                 })
@@ -755,29 +833,6 @@
             return new Blob([byteArray], { type: type });
         }
 
-        function renderMessage(message, suffix) {
-            const { role, content = '', type } = message || {};
-
-            if (!role) {
-                console.warn('Invalid message, missing role', message);
-                return;
-            }
-
-            const answerParagraph = document.createElement('p');
-            answerParagraph.classList.add('chat-bubble', role);
-            if (type === QuokkaMessageTypes.image && role === 'assistant' && content instanceof Blob) {
-                const img = document.createElement('img');
-                img.src = URL.createObjectURL(content);
-                answerParagraph.append(img);
-            } else {
-                answerParagraph.innerHTML += content.replace(/\n/g, '<br />');
-            }
-            if (suffix) {
-                answerParagraph.innerHTML += `<br /><span class="message-suffix">${suffix}</span>`;
-            }
-            answerDiv.append(answerParagraph);
-        }
-
         function addUser() {
             const name = prompt('Name?');
             const openAIToken = prompt('OpenAI token?');
@@ -819,6 +874,7 @@
             const query = store.getAll();
             query.onsuccess = () => {
                 query.result?.forEach(ch => {
+                    // TODO: transform to QuokkaChat or move to separate storage class
                     const deleteBtn = document.createElement('button');
                     deleteBtn.classList.add('emoji');
                     deleteBtn.innerText = '❌';
@@ -827,7 +883,7 @@
                     const chatHistoryPar = document.createElement('p');
                     const numberOfMessages = ch?.conversationHistory?.filter(m => m.type === QuokkaMessageTypes.chat)?.length;
                     const numberOfImages = ch?.conversationHistory?.filter(m => m.type === QuokkaMessageTypes.image)?.length;
-                    chatHistoryPar.innerHTML = `${ch.id}: <span>${ch.name} (${numberOfMessages} messages, ${numberOfImages} image messages)</span>`;
+                    chatHistoryPar.innerHTML = `${ch.id}: <span>${ch._name} (${numberOfMessages} messages, ${numberOfImages} image messages)</span>`;
                     chatHistoryPar.append(deleteBtn);
                     chatHistoryPar.onclick = () => { onChatHistorySelect(ch); };
 
@@ -838,10 +894,6 @@
                 console.error('Failed to get chats history from IndexedDB', error);
                 alert('Failed to get chats history from IndexedDB, see console');
             };
-        }
-
-        function renderChatName() {
-            chatNameHeader.innerText = currentChat.name;
         }
 
         function renderStorageStats() {
@@ -867,13 +919,12 @@
 
         function onChatHistorySelect(chatHistoryItem) {
             toggleSidebar();
-            currentChat = new QuokkaChat(
+            currentChat = new QuokkaChat( // TODO: move to separate storage class
                 chatHistoryItem.id,
-                chatHistoryItem.name,
-                chatHistoryItem.conversationHistory?.map(m => new QuokkaMessage(m.role, m.content, m.type))
+                chatHistoryItem._name, // starting from schema v3, name is stored as pseudo-private _name
+                chatHistoryItem.conversationHistory?.map(m => new QuokkaMessage(m.role, m.content, m.type, m.model, m.tokenUsage, m.finishReason))
             );
-            chatRenderer = new QuokkaChatRenderer(currentChat, answerDiv);
-            renderChatName();
+            chatRenderer.selectChat(currentChat);
         }
 
         function onChatHistoryDelete(chatHistoryItem) {
@@ -882,7 +933,7 @@
                 return;
             }
 
-            if (!confirm(`Are you sure you want to delete chat ${chatHistoryItem.name} (id: ${chatHistoryItem.id})?`)) {
+            if (!confirm(`Are you sure you want to delete chat ${chatHistoryItem._name} (id: ${chatHistoryItem.id})?`)) {
                 return;
             }
 
@@ -905,11 +956,10 @@
                 return;
             }
 
-            if (!currentChat.id || currentChat.id <= 0) {
+            if (!currentChat.id || currentChat.id <= 0) { // TODO: consider moving to QuokkaChat
                 //new chat, save
                 const name = prompt('Provide name for this chat please');
                 currentChat.name = name;
-                renderChatName();
             }
 
             const t = db.transaction('chats', 'readwrite');
