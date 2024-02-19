@@ -478,7 +478,6 @@
         let userSelect = null;
         let loadingElement = null;
         let mainInput = null;
-        let answerDiv = null;
         let chatsHistoryContainer = null;
         let storageStatsDiv = null;
         let chatNameHeader = null;
@@ -552,14 +551,8 @@
             #chat = null;
             #answerDiv = null;
 
-            constructor(chat, answerDiv) {
-                this.#chat = chat;
+            constructor(answerDiv) {
                 this.#answerDiv = answerDiv;
-
-                this.#chat.subscribe(this);
-
-                this.renderChatName();
-                this.renderChat();
             }
 
             // Observer methods
@@ -573,6 +566,14 @@
             }
 
             // Renderer methods
+            selectChat(chat) {
+                this.#chat = chat;
+                this.#chat.subscribe(this);
+
+                this.renderChatName();
+                this.renderChat();
+            }
+
             renderChatName() {
                 chatNameHeader.innerText = this.#chat.name;
             }
@@ -637,7 +638,6 @@
             userSelect = document.getElementById('userSelect');
             loadingElement = document.getElementById('loading');
             mainInput = document.getElementById('mainInput');
-            answerDiv = document.getElementById('answer');
             chatsHistoryContainer = document.getElementById('chatsHistory');
             storageStatsDiv = document.getElementById('storageStats');
             chatNameHeader = document.getElementById('chatName');
@@ -650,7 +650,8 @@
             seedInput = document.getElementById('seedInput');
 
             currentChat = new QuokkaChat();
-            chatRenderer = new QuokkaChatRenderer(currentChat, answerDiv);
+            chatRenderer = new QuokkaChatRenderer(document.getElementById('answer'));
+            chatRenderer.selectChat(currentChat);
 
             users = JSON.parse(localStorage.getItem(localStorageUsersKey)) ?? [];
 
@@ -920,7 +921,7 @@
                 chatHistoryItem._name, // starting from schema v3, name is stored as pseudo-private _name
                 chatHistoryItem.conversationHistory?.map(m => new QuokkaMessage(m.role, m.content, m.type, m.model, m.tokenUsage))
             );
-            chatRenderer = new QuokkaChatRenderer(currentChat, answerDiv);
+            chatRenderer.selectChat(currentChat);
         }
 
         function onChatHistoryDelete(chatHistoryItem) {
