@@ -917,7 +917,7 @@
 
         function onChatHistorySelect(chatHistoryItem) {
             toggleSidebar();
-            currentChat = new QuokkaChat(
+            currentChat = new QuokkaChat( // TODO: move to separate storage class
                 chatHistoryItem.id,
                 chatHistoryItem._name, // starting from schema v3, name is stored as pseudo-private _name
                 chatHistoryItem.conversationHistory?.map(m => new QuokkaMessage(m.role, m.content, m.type, m.model, m.tokenUsage, m.finishReason))
@@ -954,7 +954,7 @@
                 return;
             }
 
-            if (!currentChat.id || currentChat.id <= 0) {
+            if (!currentChat.id || currentChat.id <= 0) { // TODO: consider moving to QuokkaChat
                 //new chat, save
                 const name = prompt('Provide name for this chat please');
                 currentChat.name = name;
