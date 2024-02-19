@@ -512,12 +512,22 @@
 
         class QuokkaChat {
             #observers = []; // private to avoid storing in IndexedDB
+            #name = null;
             constructor(id, name, conversationHistory) {
                 if (id) {
                     this.id = id;
                 }
-                this.name = name || '*New chat*';
+                this.#name = name || '*New chat*';
                 this.conversationHistory = conversationHistory || [];
+            }
+
+            get name() {
+                return this.#name;
+            }
+
+            set name(name) {
+                this.#name = name;
+                this.#observers.forEach(o => o.nameChanged?.(name));
             }
 
             addMessage(role, content, type, suffix) {
@@ -542,12 +552,23 @@
 
                 this.#chat.subscribe(this);
 
+                this.renderChatName();
                 this.renderChat();
+            }
+
+            // Observer methods
+            nameChanged(name) {
+                this.renderChatName();
             }
 
             messageAdded(message, suffix) {
                 this.renderMessage(message, suffix); // TODO refactor suffix into message
                 this.scrollToBottom();
+            }
+
+            // Renderer methods
+            renderChatName() {
+                chatNameHeader.innerText = this.#chat.name;
             }
 
             renderChat() {
@@ -612,7 +633,6 @@
             handleEvents();
 
             updateUsers();
-            renderChatName(); // TODO move to QuokkaChatRenderer?
 
             const conn = indexedDB.open('quokkaDb', 2);
 
@@ -838,10 +858,6 @@
             };
         }
 
-        function renderChatName() {
-            chatNameHeader.innerText = currentChat.name;
-        }
-
         function renderStorageStats() {
             if (navigator?.storage?.estimate) {
                 navigator.storage.estimate().then(estimate => {
@@ -871,7 +887,6 @@
                 chatHistoryItem.conversationHistory?.map(m => new QuokkaMessage(m.role, m.content, m.type))
             );
             chatRenderer = new QuokkaChatRenderer(currentChat, answerDiv);
-            renderChatName();
         }
 
         function onChatHistoryDelete(chatHistoryItem) {
@@ -907,7 +922,6 @@
                 //new chat, save
                 const name = prompt('Provide name for this chat please');
                 currentChat.name = name;
-                renderChatName();
             }
 
             const t = db.transaction('chats', 'readwrite');
