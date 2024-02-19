@@ -703,8 +703,6 @@
             conn.onsuccess = () => {
                 db = conn.result;
                 console.log('IndexedDB opened successfully, conversations will be recorded');
-
-                renderChatsHistory();
             };
 
             conn.onerror = (e) => {
