@@ -624,7 +624,7 @@
                 const completionText = `✔️completion: ${message.tokenUsage.completion_tokens}`;
                 const promptText = `❔prompt: ${message.tokenUsage.prompt_tokens}`;
                 const totalText = `🟰total: ${message.tokenUsage.total_tokens}`;
-                tokensUsedParagraph.innerHTML += `<span class="usage">Tokens usage: ${completionText} ${promptText}${totalText}</span>`;
+                tokensUsedParagraph.innerHTML += `<span class="usage">Tokens usage: ${completionText} ${promptText} ${totalText}</span>`;
                 this.#answerDiv.append(tokensUsedParagraph);
             }
 
@@ -751,7 +751,9 @@
                     console.log(data);
 
                     data?.choices?.forEach((choice, index) => {
-                        currentChat.addMessage(choice?.message?.role, choice?.message?.content, QuokkaMessageTypes.chat, index === 0 ? data?.model : null, index === 0 ? data?.usage : null, choice?.finish_reason);
+                        const isFirst = index === 0;
+                        currentChat.addMessage(choice?.message?.role, choice?.message?.content, QuokkaMessageTypes.chat,
+                            isFirst ? data?.model : null, isFirst ? data?.usage : null, choice?.finish_reason);
                     });
                     mainInput.value = '';
                 })
