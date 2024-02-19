@@ -495,11 +495,12 @@
         };
 
         class QuokkaMessage {
-            constructor(role, content, type, model, tokenUsage) {
+            constructor(role, content, type, model, tokenUsage, finishReason) {
                 this.role = role;
                 this.content = content;
                 this.type = type;
                 this.model = model;
+                this.finishReason = finishReason;
 
                 this.tokenUsage = tokenUsage ? {
                     prompt_tokens: tokenUsage.prompt_tokens,
@@ -535,11 +536,11 @@
                 this.#observers.forEach(o => o.nameChanged?.(name));
             }
 
-            addMessage(role, content, type, model, tokenUsage, suffix) {
-                const newMessage = new QuokkaMessage(role, content, type, model, tokenUsage);
+            addMessage(role, content, type, model, tokenUsage, finishReason) {
+                const newMessage = new QuokkaMessage(role, content, type, model, tokenUsage, finishReason);
                 this.conversationHistory.push(newMessage);
                 saveCurrentChat(); // TODO move
-                this.#observers.forEach(o => o.messageAdded?.(newMessage, suffix));
+                this.#observers.forEach(o => o.messageAdded?.(newMessage));
             }
 
             subscribe(observer) {
@@ -560,8 +561,8 @@
                 this.renderChatName();
             }
 
-            messageAdded(message, suffix) {
-                this.renderMessage(message, suffix); // TODO refactor suffix into message
+            messageAdded(message) {
+                this.renderMessage(message);
                 this.scrollToBottom();
             }
 
@@ -586,7 +587,7 @@
                 this.scrollToBottom();
             }
 
-            renderMessage(message, suffix) {
+            renderMessage(message) {
                 const { role, content = '', type } = message || {};
 
                 if (!role) {
@@ -605,8 +606,8 @@
                 } else {
                     answerParagraph.innerHTML += content.replace(/\n/g, '<br />');
                 }
-                if (suffix) {
-                    answerParagraph.innerHTML += `<br /><span class="message-suffix">${suffix}</span>`;
+                if (message?.finishReason) {
+                    answerParagraph.innerHTML += `<br /><span class="message-suffix">Finish reason: ${message.finishReason}</span>`;
                 }
                 this.#answerDiv.append(answerParagraph);
             }
@@ -750,7 +751,7 @@
                     console.log(data);
 
                     data?.choices?.forEach((choice, index) => {
-                        currentChat.addMessage(choice?.message?.role, choice?.message?.content, QuokkaMessageTypes.chat, index === 0 ? data?.model : null, index === 0 ? data?.usage : null, `Finish reason: ${choice?.finish_reason}`);
+                        currentChat.addMessage(choice?.message?.role, choice?.message?.content, QuokkaMessageTypes.chat, index === 0 ? data?.model : null, index === 0 ? data?.usage : null, choice?.finish_reason);
                     });
                     mainInput.value = '';
                 })
@@ -919,7 +920,7 @@
             currentChat = new QuokkaChat(
                 chatHistoryItem.id,
                 chatHistoryItem._name, // starting from schema v3, name is stored as pseudo-private _name
-                chatHistoryItem.conversationHistory?.map(m => new QuokkaMessage(m.role, m.content, m.type, m.model, m.tokenUsage))
+                chatHistoryItem.conversationHistory?.map(m => new QuokkaMessage(m.role, m.content, m.type, m.model, m.tokenUsage, m.finishReason))
             );
             chatRenderer.selectChat(currentChat);
         }
