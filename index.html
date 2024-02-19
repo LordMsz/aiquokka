@@ -496,10 +496,17 @@
         };
 
         class QuokkaMessage {
-            constructor(role, content, type) {
+            constructor(role, content, type, model, tokenUsage) {
                 this.role = role;
                 this.content = content;
                 this.type = type;
+                this.model = model;
+
+                this.tokenUsage = tokenUsage ? {
+                    prompt_tokens: tokenUsage.prompt_tokens,
+                    completion_tokens: tokenUsage.completion_tokens,
+                    total_tokens: tokenUsage.total_tokens
+                } : null;
             }
 
             toOpenAIModel() {
@@ -512,26 +519,25 @@
 
         class QuokkaChat {
             #observers = []; // private to avoid storing in IndexedDB
-            #name = null;
             constructor(id, name, conversationHistory) {
                 if (id) {
                     this.id = id;
                 }
-                this.#name = name || '*New chat*';
+                this._name = name || '*New chat*';
                 this.conversationHistory = conversationHistory || [];
             }
 
             get name() {
-                return this.#name;
+                return this._name;
             }
 
             set name(name) {
-                this.#name = name;
+                this._name = name;
                 this.#observers.forEach(o => o.nameChanged?.(name));
             }
 
-            addMessage(role, content, type, suffix) {
-                const newMessage = new QuokkaMessage(role, content, type);
+            addMessage(role, content, type, model, tokenUsage, suffix) {
+                const newMessage = new QuokkaMessage(role, content, type, model, tokenUsage);
                 this.conversationHistory.push(newMessage);
                 saveCurrentChat(); // TODO move
                 this.#observers.forEach(o => o.messageAdded?.(newMessage, suffix));
@@ -587,6 +593,8 @@
                     return;
                 }
 
+                this.renderTokenUsage(message);
+
                 const answerParagraph = document.createElement('p');
                 answerParagraph.classList.add('chat-bubble', role);
                 if (type === QuokkaMessageTypes.image && role === 'assistant' && content instanceof Blob) {
@@ -600,6 +608,22 @@
                     answerParagraph.innerHTML += `<br /><span class="message-suffix">${suffix}</span>`;
                 }
                 this.#answerDiv.append(answerParagraph);
+            }
+
+            renderTokenUsage(message) {
+                if (!message || !message.tokenUsage || !message.model) {
+                    return;
+                }
+
+                const tokensUsedParagraph = document.createElement('p');
+                tokensUsedParagraph.classList.add('tokens-usage');
+                tokensUsedParagraph.innerHTML += `<span class="model">Model: ${message.model}. </span>`;
+
+                const completionText = `✔️completion: ${message.tokenUsage.completion_tokens}`;
+                const promptText = `❔prompt: ${message.tokenUsage.prompt_tokens}`;
+                const totalText = `🟰total: ${message.tokenUsage.total_tokens}`;
+                tokensUsedParagraph.innerHTML += `<span class="usage">Tokens usage: ${completionText} ${promptText}${totalText}</span>`;
+                this.#answerDiv.append(tokensUsedParagraph);
             }
 
             scrollToBottom() {
@@ -634,7 +658,7 @@
 
             updateUsers();
 
-            const conn = indexedDB.open('quokkaDb', 2);
+            const conn = indexedDB.open('quokkaDb', 3);
 
             conn.onupgradeneeded = (e) => {
                 db = conn.result;
@@ -655,7 +679,24 @@
                 }
 
                 if (oldVersion < 3) { // v2 -> v3
-                    //TODO //const index = store.createIndex
+                    // change all chats to use _name instead of name
+                    const t = conn.transaction;
+                    const store = t.objectStore('chats');
+                    const query = store.getAll();
+                    query.onsuccess = () => {
+                        query.result?.forEach(ch => {
+                            ch._name = ch.name;
+                            delete ch.name;
+                            store.put(ch);
+                        });
+
+                        console.log('IndexedDB schema v3 applied, all data migrated');
+                    };
+                    query.onerror = (e) => {
+                        console.error('Failed to migrate chats to schema v3', error);
+                        alert('Failed to migrate chats to schema v3, see console');
+                        conn.transaction.abort();
+                    };
                 }
             };
 
@@ -709,14 +750,8 @@
                 .then((data) => {
                     console.log(data);
 
-                    const tokensUsedParagraph = document.createElement('p');
-                    tokensUsedParagraph.classList.add('tokens-usage');
-                    tokensUsedParagraph.innerHTML += `<span class="model">Model: ${data.model}. </span>`;
-                    tokensUsedParagraph.innerHTML += `<span class="usage">Tokens usage: ✔️completion: ${data.usage.completion_tokens} ❔prompt: ${data.usage.prompt_tokens} 🟰total: ${data.usage.total_tokens}</span>`;
-                    answerDiv.append(tokensUsedParagraph);
-
-                    data?.choices?.forEach(choice => {
-                        currentChat.addMessage(choice?.message?.role, choice?.message?.content, QuokkaMessageTypes.chat, `Finish reason: ${choice?.finish_reason}`);
+                    data?.choices?.forEach((choice, index) => {
+                        currentChat.addMessage(choice?.message?.role, choice?.message?.content, QuokkaMessageTypes.chat, index === 0 ? data?.model : null, index === 0 ? data?.usage : null, `Finish reason: ${choice?.finish_reason}`);
                     });
                     mainInput.value = '';
                 })
@@ -837,6 +872,7 @@
             const query = store.getAll();
             query.onsuccess = () => {
                 query.result?.forEach(ch => {
+                    // TODO: transform to QuokkaChat or move to separate storage class
                     const deleteBtn = document.createElement('button');
                     deleteBtn.classList.add('emoji');
                     deleteBtn.innerText = '❌';
@@ -845,7 +881,7 @@
                     const chatHistoryPar = document.createElement('p');
                     const numberOfMessages = ch?.conversationHistory?.filter(m => m.type === QuokkaMessageTypes.chat)?.length;
                     const numberOfImages = ch?.conversationHistory?.filter(m => m.type === QuokkaMessageTypes.image)?.length;
-                    chatHistoryPar.innerHTML = `${ch.id}: <span>${ch.name} (${numberOfMessages} messages, ${numberOfImages} image messages)</span>`;
+                    chatHistoryPar.innerHTML = `${ch.id}: <span>${ch._name} (${numberOfMessages} messages, ${numberOfImages} image messages)</span>`;
                     chatHistoryPar.append(deleteBtn);
                     chatHistoryPar.onclick = () => { onChatHistorySelect(ch); };
 
@@ -883,8 +919,8 @@
             toggleSidebar();
             currentChat = new QuokkaChat(
                 chatHistoryItem.id,
-                chatHistoryItem.name,
-                chatHistoryItem.conversationHistory?.map(m => new QuokkaMessage(m.role, m.content, m.type))
+                chatHistoryItem._name, // starting from schema v3, name is stored as pseudo-private _name
+                chatHistoryItem.conversationHistory?.map(m => new QuokkaMessage(m.role, m.content, m.type, m.model, m.tokenUsage))
             );
             chatRenderer = new QuokkaChatRenderer(currentChat, answerDiv);
         }
@@ -895,7 +931,7 @@
                 return;
             }
 
-            if (!confirm(`Are you sure you want to delete chat ${chatHistoryItem.name} (id: ${chatHistoryItem.id})?`)) {
+            if (!confirm(`Are you sure you want to delete chat ${chatHistoryItem._name} (id: ${chatHistoryItem.id})?`)) {
                 return;
             }
 
