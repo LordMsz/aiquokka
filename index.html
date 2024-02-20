@@ -461,6 +461,14 @@
                 <label for="imageQualityHdCb">HD quality (Dall-e 3)</label>
                 <input type="checkbox" id="imageQualityHdCb" name="imageQualityHdCb" />
             </div>
+            <div>
+                <label for="imageStyleSelect">Style</label>
+                <select id="imageStyleSelect" name="imageStyleSelect">
+                    <option value="vivid">Vivid (default) (Dall-e 3)</option>
+                    <option value="">None (Dall-e 2)</option>
+                    <option value="natural">Natural (Dall-e 3)</option>
+                </select>
+            </div>
         </div>
         <h1>Your conversations</h1>
         <div id="chatsHistory"></div>
@@ -798,6 +806,10 @@
 
             if (imageQualityHdCb.checked) {
                 requestData.quality = 'hd';
+            }
+
+            if(imageStyleSelect.value) {
+                requestData.style = imageStyleSelect.value;
             }
 
             const headers = {
