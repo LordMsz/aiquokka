@@ -209,6 +209,10 @@
             flex-wrap: wrap;
         }
 
+        div.params:last-child {
+            padding-bottom: 2em; /* fix for physical phones */
+        }
+
         .params label {
             margin-left: 0.5em;
         }
@@ -309,6 +313,14 @@
         }
 
         @media screen and (max-width: 800px) {
+            h1 {
+                font-size: 1.5em;
+            }
+
+            h2 {
+                font-size: 1.2em;
+            }
+
             header div h1 {
                 display: none;
             }
@@ -474,12 +486,14 @@
         <div id="chatsHistory"></div>
         <div id="storageStats"></div>
         <h1>Import/Export</h1>
-        <div id="importExport">
+        <div class="params">
             <input type="file" id="importFile" accept=".json" />
             <button onclick="importData()">Import</button>
             <button onclick="exportData()">Export</button>
-            <label for="overwriteChatsCb" title="Overwrite existing chats by Id (checked) or append (unchecked)">Overwrite chats</label>
-            <input type="checkbox" id="overwriteChatsCb" name="overwriteChatsCb" />
+            <span>
+                <label for="overwriteChatsCb" title="Overwrite existing chats by Id (checked) or append (unchecked)">Overwrite chats</label>
+                <input type="checkbox" id="overwriteChatsCb" name="overwriteChatsCb" />
+            </span>
         </div>
     </div>
     <h2 id="loading" style="visibility: hidden;">Loading...</h2>
