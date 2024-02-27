@@ -473,6 +473,14 @@
         <h1>Your conversations</h1>
         <div id="chatsHistory"></div>
         <div id="storageStats"></div>
+        <h1>Import/Export</h1>
+        <div id="importExport">
+            <input type="file" id="importFile" accept=".json" />
+            <button onclick="importData()">Import</button>
+            <button onclick="exportData()">Export</button>
+            <label for="overwriteChatsCb" title="Overwrite existing chats by Id (checked) or append (unchecked)">Overwrite chats</label>
+            <input type="checkbox" id="overwriteChatsCb" name="overwriteChatsCb" />
+        </div>
     </div>
     <h2 id="loading" style="visibility: hidden;">Loading...</h2>
 
@@ -699,8 +707,7 @@
                     const query = store.getAll();
                     query.onsuccess = () => {
                         query.result?.forEach(ch => {
-                            ch._name = ch.name;
-                            delete ch.name;
+                            ch = migrateChatData(ch, 2, 3);
                             store.put(ch);
                         });
 
@@ -723,6 +730,15 @@
                 console.error("IndexedDB opening failed, some functionality may be broken!", e);
                 alert("Failed to open IndexedDB, see console");
             };
+        }
+
+        // TODO move to separate "DB" handling class
+        function migrateChatData(chat, sourceVersion, targetVersion) {
+            if (sourceVersion < 3 && targetVersion >= 3) {
+                chat._name = chat.name;
+                delete chat.name;
+            }
+            return chat;
         }
 
         function sendChat() {
@@ -808,7 +824,7 @@
                 requestData.quality = 'hd';
             }
 
-            if(imageStyleSelect.value) {
+            if (imageStyleSelect.value) {
                 requestData.style = imageStyleSelect.value;
             }
 
@@ -852,6 +868,15 @@
             }
             const byteArray = new Uint8Array(byteNumbers);
             return new Blob([byteArray], { type: type });
+        }
+
+        async function convertBlobToBase64(blob) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(blob);
+            });
         }
 
         function addUser() {
@@ -997,6 +1022,120 @@
             saveQuery.onerror = (e) => {
                 console.error('Failed to save chat into IndexedDB', e);
                 alert('Failed to save chat into IndexedDB, see console');
+            };
+        }
+
+        function importData() {
+            const file = document.getElementById('importFile').files[0];
+            if (!file) {
+                alert('No file selected');
+                return;
+            }
+
+            setLoading(true);
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                const contents = e.target.result;
+                const data = JSON.parse(contents);
+
+                if (!data || !data.dbVersion || !data.chats || !Array.isArray(data.chats)) {
+                    alert('Invalid JSON file');
+                    setLoading(false);
+                    return;
+                }
+
+                const confirmMessage = `You are about to import ${data.chats.length} chats from file created on ${data.exportDate} from ${data.exportedFrom}. Are you sure?`;
+                if (!confirm(confirmMessage)) {
+                    setLoading(false);
+                    return;
+                }
+
+                let migratedChats = [];
+                try {
+                    console.log(`Migrating chats from file from version ${data.dbVersion} to current version ${db.version}`);
+                    migratedChats = data.chats.map(ch => migrateChatData(ch, data.dbVersion, db.version));
+                    migratedChats.forEach(ch => {
+                        ch.conversationHistory?.forEach(m => {
+                            if (m.type === QuokkaMessageTypes.image && m.content && m.role === 'assistant' && m.content.startsWith('data:image/png;base64,')) {
+                                const blob = convertBase64ToBlob(m.content.replace('data:image/png;base64,', ''), 'image/png');
+                                m.content = blob;
+                            }
+                        });
+                    });
+                } catch (error) {
+                    console.error('Failed to migrate chats from file', error);
+                    alert('Failed to migrate chats from file, see console');
+                    setLoading(false);
+                    return;
+                }
+
+                const overwriteChats = document.getElementById('overwriteChatsCb').checked;
+                if(!overwriteChats) {
+                    migratedChats.forEach(ch => delete ch.id);
+                }
+
+                const t = db.transaction('chats', 'readwrite');
+                const store = t.objectStore('chats');
+
+                migratedChats.forEach(ch => {
+                    store.put(ch);
+                });
+
+                t.oncomplete = () => {
+                    console.log('Imported chats', migratedChats);
+                    renderChatsHistory();
+                    setLoading(false);
+                };
+
+                t.onerror = (e) => {
+                    console.error('Failed to import chats into IndexedDB', e);
+                    alert('Failed to import chats into IndexedDB, see console');
+                    setLoading(false);
+                };
+            };
+            reader.readAsText(file);
+        }
+
+        async function exportData() {
+            const data = {
+                dbVersion: db.version,
+                exportDate: new Date().toISOString(),
+                exportedFrom: location.href,
+                chats: []
+            };
+
+            const t = db.transaction('chats', 'readonly');
+            const store = t.objectStore('chats');
+
+            setLoading(true);
+            const query = store.getAll();
+            query.onsuccess = async () => {
+                data.chats = query.result;
+
+                for await (const ch of data.chats) {
+                    for await (const m of ch?.conversationHistory) {
+                        if (m.type === QuokkaMessageTypes.image && m.content instanceof Blob) {
+                            const base64 = await convertBlobToBase64(m.content);
+                            m.content = base64;
+                        }
+                    }
+                }
+
+                const dataStr = JSON.stringify(data, null, 2);
+                const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
+                const exportFileDefaultName = 'quokkaData.json';
+
+                const linkElement = document.createElement('a');
+                linkElement.setAttribute('href', dataUri);
+                linkElement.setAttribute('download', exportFileDefaultName);
+                linkElement.click();
+
+                setLoading(false);
+            };
+            query.onerror = (e) => {
+                console.error('Failed to get chats from IndexedDB for export', error);
+                alert('Failed to get chats from IndexedDB for export, see console');
+                setLoading(false);
             };
         }
 
