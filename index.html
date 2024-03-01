@@ -164,8 +164,26 @@
             background-color: #e4e4e4;
         }
 
-        header #chatName {
+        header .chat-name {
             margin-right: auto;
+        }
+
+        header input {
+            font-size: 1em;
+            font-weight: bold;
+            border: none;
+            border-radius: 8px;
+            background: none;
+            font-family: inherit;
+        }
+
+        header input:hover {
+            background: #e4e4e4;
+        }
+
+        header input:focus {
+            outline: none;
+            background: #e4e4e4;
         }
 
         .sidebar {
@@ -359,7 +377,7 @@
 <body onload="init()">
     <header>
         <button class="emoji" onclick="toggleSidebar()" title="Display settings">☰</button>
-        <h1 id="chatName"></h1>
+        <h1 class="chat-name"><input id="chatNameInput" type="text" oninput="currentChat.name = this.value;" /></h1>
         <div>
             <h1><img src="img/aiquokka.png" style="height: 1em;" /> AI Quokka, Yet Another OpenAI API client</h1>
             <q><em>...for Quokkas are known for their cheerful demeanor</em> - ChatGPT 3.5</q>
@@ -514,7 +532,7 @@
         let mainInput = null;
         let chatsHistoryContainer = null;
         let storageStatsDiv = null;
-        let chatNameHeader = null;
+        let chatNameInput = null;
         let tokensLimitInput = null;
         let chatModelSelect = null;
         let temperatureInput = null;
@@ -567,6 +585,7 @@
 
             set name(name) {
                 this._name = name;
+                saveCurrentChat(); // TODO move
                 this.#observers.forEach(o => o.nameChanged?.(name));
             }
 
@@ -610,7 +629,7 @@
             }
 
             renderChatName() {
-                chatNameHeader.innerText = this.#chat.name;
+                chatNameInput.value = this.#chat.name;
             }
 
             renderChat() {
@@ -675,7 +694,7 @@
             mainInput = document.getElementById('mainInput');
             chatsHistoryContainer = document.getElementById('chatsHistory');
             storageStatsDiv = document.getElementById('storageStats');
-            chatNameHeader = document.getElementById('chatName');
+            chatNameInput = document.getElementById('chatNameInput');
             tokensLimitInput = document.getElementById('tokensLimitInput');
             chatModelSelect = document.getElementById('chatModelSelect');
             temperatureInput = document.getElementById('temperatureInput');
