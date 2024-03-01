@@ -227,8 +227,14 @@
             flex-wrap: wrap;
         }
 
-        div.params:last-child {
+        div.sidebar>*:last-child {
             padding-bottom: 8em; /* fix for physical phones */
+        }
+
+        div.sidebar .version {
+            text-align: right;
+            font-size: 0.8em;
+            margin-top: 1em;
         }
 
         .params label {
@@ -513,6 +519,7 @@
                 <input type="checkbox" id="overwriteChatsCb" name="overwriteChatsCb" />
             </span>
         </div>
+        <div class="version">v0.1.0</div>
     </div>
     <h2 id="loading" style="visibility: hidden;">Loading...</h2>
 
@@ -540,6 +547,7 @@
         let frequencyPenaltyInput = null;
         let presencePenaltyInput = null;
         let seedInput = null;
+        let versionElement = null;
 
         const QuokkaMessageTypes = {
             chat: 'chat',
@@ -702,6 +710,7 @@
             frequencyPenaltyInput = document.getElementById('frequencyPenaltyInput');
             presencePenaltyInput = document.getElementById('presencePenaltyInput');
             seedInput = document.getElementById('seedInput');
+            versionElement = document.querySelector('.version');
 
             currentChat = new QuokkaChat();
             chatRenderer = new QuokkaChatRenderer(document.getElementById('answer'));
@@ -757,6 +766,7 @@
             conn.onsuccess = () => {
                 db = conn.result;
                 console.log('IndexedDB opened successfully, conversations will be recorded');
+                versionElement.innerHTML += `, DB v${db.version}`;
             };
 
             conn.onerror = (e) => {
