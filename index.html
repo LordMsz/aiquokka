@@ -598,6 +598,13 @@
             }
 
             addMessage(role, content, type, model, tokenUsage, finishReason) {
+                if (!this.id || this.id <= 0) {
+                    //new chat, get name
+                    const name = prompt('Provide name for this chat please, you can change it later');
+                    this._name = name;
+                    this.#observers.forEach(o => o.nameChanged?.(name));
+                }
+
                 const newMessage = new QuokkaMessage(role, content, type, model, tokenUsage, finishReason);
                 this.conversationHistory.push(newMessage);
                 saveCurrentChat(); // TODO move
@@ -1043,12 +1050,6 @@
         function saveCurrentChat() {
             if (!currentChat) {
                 return;
-            }
-
-            if (!currentChat.id || currentChat.id <= 0) { // TODO: consider moving to QuokkaChat
-                //new chat, save
-                const name = prompt('Provide name for this chat please');
-                currentChat.name = name;
             }
 
             const t = db.transaction('chats', 'readwrite');
