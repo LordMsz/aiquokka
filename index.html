@@ -134,7 +134,7 @@
             max-width: 100%;
         }
 
-        #answer .tokens-usage {
+        #answer .metadata {
             margin: 0;
             margin-left: 8px;
             font-size: 0.8em;
@@ -358,7 +358,7 @@
                 line-height: 1.9em;
             }
 
-            #answer .tokens-usage .usage {
+            #answer .metadata .usage {
                 display: block;
             }
 
@@ -555,12 +555,13 @@
         };
 
         class QuokkaMessage {
-            constructor(role, content, type, model, tokenUsage, finishReason) {
+            constructor(role, content, type, model, tokenUsage, finishReason, timeStamp) {
                 this.role = role;
                 this.content = content;
                 this.type = type;
                 this.model = model;
                 this.finishReason = finishReason;
+                this.timeStamp = timeStamp || null;
 
                 this.tokenUsage = tokenUsage ? {
                     prompt_tokens: tokenUsage.prompt_tokens,
@@ -605,7 +606,8 @@
                     this.#observers.forEach(o => o.nameChanged?.(name));
                 }
 
-                const newMessage = new QuokkaMessage(role, content, type, model, tokenUsage, finishReason);
+                const timeStamp = new Date().toISOString(); // consider using server response field "created" instead
+                const newMessage = new QuokkaMessage(role, content, type, model, tokenUsage, finishReason, timeStamp);
                 this.conversationHistory.push(newMessage);
                 saveCurrentChat(); // TODO move
                 this.#observers.forEach(o => o.messageAdded?.(newMessage));
@@ -663,7 +665,7 @@
                     return;
                 }
 
-                this.renderTokenUsage(message);
+                this.renderMetadata(message);
 
                 const answerParagraph = document.createElement('p');
                 answerParagraph.classList.add('chat-bubble', role);
@@ -680,20 +682,31 @@
                 this.#answerDiv.append(answerParagraph);
             }
 
-            renderTokenUsage(message) {
-                if (!message || !message.tokenUsage || !message.model) {
+            renderMetadata(message) {
+                if (!message || (!message.tokenUsage && !message.model)) {
                     return;
                 }
 
-                const tokensUsedParagraph = document.createElement('p');
-                tokensUsedParagraph.classList.add('tokens-usage');
-                tokensUsedParagraph.innerHTML += `<span class="model">Model: ${message.model}. </span>`;
+                const metadataParagraph = document.createElement('p');
+                metadataParagraph.classList.add('metadata');
 
-                const completionText = `✔️completion: ${message.tokenUsage.completion_tokens}`;
-                const promptText = `❔prompt: ${message.tokenUsage.prompt_tokens}`;
-                const totalText = `🟰total: ${message.tokenUsage.total_tokens}`;
-                tokensUsedParagraph.innerHTML += `<span class="usage">Tokens usage: ${completionText} ${promptText} ${totalText}</span>`;
-                this.#answerDiv.append(tokensUsedParagraph);
+                if (message.model) {
+                    metadataParagraph.innerHTML += `<span class="model">Model: ${message.model}. </span>`;
+                }
+
+                if (message.tokenUsage) {
+                    const completionText = `✔️completion: ${message.tokenUsage.completion_tokens}`;
+                    const promptText = `❔prompt: ${message.tokenUsage.prompt_tokens}`;
+                    const totalText = `🟰total: ${message.tokenUsage.total_tokens}`;
+                    metadataParagraph.innerHTML += `<span class="usage">Tokens usage: ${completionText} ${promptText} ${totalText}. </span>`;
+                }
+
+                if (message.timeStamp) {
+                    const timeStamp = message.timeStamp ? new Date(message.timeStamp).toLocaleString() : 'unknown';
+                    metadataParagraph.innerHTML += `<span class="time-stamp">🕒${timeStamp}</span>`;
+                }
+
+                this.#answerDiv.append(metadataParagraph);
             }
 
             scrollToBottom() {
@@ -862,8 +875,9 @@
             currentChat.addMessage('user', prompt, QuokkaMessageTypes.image);
 
             const apiUrl = 'https://api.openai.com/v1/images/generations';
+            const imageModel = imageModelSelect.value;
             const requestData = {
-                model: imageModelSelect.value,
+                model: imageModel,
                 prompt: prompt,
                 n: 1,
                 size: imageSizeSelect.value,
@@ -896,7 +910,7 @@
                     response?.data?.forEach(img => {
                         const blob = convertBase64ToBlob(img.b64_json, 'image/png');
 
-                        currentChat.addMessage('assistant', blob, QuokkaMessageTypes.image);
+                        currentChat.addMessage('assistant', blob, QuokkaMessageTypes.image, imageModel);
                         if (img.revised_prompt) {
                             currentChat.addMessage('assistant', `Revised prompt: <em>${img.revised_prompt}</em>`, QuokkaMessageTypes.image);
                         }
@@ -1018,7 +1032,7 @@
             currentChat = new QuokkaChat( // TODO: move to separate storage class
                 chatHistoryItem.id,
                 chatHistoryItem._name, // starting from schema v3, name is stored as pseudo-private _name
-                chatHistoryItem.conversationHistory?.map(m => new QuokkaMessage(m.role, m.content, m.type, m.model, m.tokenUsage, m.finishReason))
+                chatHistoryItem.conversationHistory?.map(m => new QuokkaMessage(m.role, m.content, m.type, m.model, m.tokenUsage, m.finishReason, m.timeStamp))
             );
             chatRenderer.selectChat(currentChat);
         }
