@@ -72,6 +72,7 @@ Edit index.html, refresh, enjoy.
   - You have an option to add credits to your account balance up front, and hard-stop when depleting it all (this is OpenAI API feature)
   - Access to all models and services (all Chat models and Generations/Image models for now; possiblty more in future)
   - You can use multiple different users/tokens if you want
+  - Estimated cost shown on each response and also as total
 - All chats stored in browser storage with ability to import, export and delete them
   - All chat and image data stored in Indexed DB locally on your device (there is no server behind this application, only pure OpenAI API)
   - Export all your chats and images (as base64) with single click to not lose it (yes, it's really stored only in browser; not the safest place!)

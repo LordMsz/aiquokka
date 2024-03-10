@@ -555,7 +555,7 @@
         };
 
         class QuokkaMessage {
-            constructor(role, content, type, model, tokenUsage, finishReason, timeStamp) {
+            constructor(role, content, type, model, tokenUsage, finishReason, imageOptions, timeStamp) {
                 this.role = role;
                 this.content = content;
                 this.type = type;
@@ -567,6 +567,11 @@
                     prompt_tokens: tokenUsage.prompt_tokens,
                     completion_tokens: tokenUsage.completion_tokens,
                     total_tokens: tokenUsage.total_tokens
+                } : null;
+
+                this.imageOptions = imageOptions ? {
+                    size: imageOptions.size,
+                    quality: imageOptions.quality
                 } : null;
             }
 
@@ -598,7 +603,7 @@
                 this.#observers.forEach(o => o.nameChanged?.(name));
             }
 
-            addMessage(role, content, type, model, tokenUsage, finishReason) {
+            addMessage(role, content, type, model, tokenUsage, finishReason, imageOptions) {
                 if (!this.id || this.id <= 0) {
                     //new chat, get name
                     const name = prompt('Provide name for this chat please, you can change it later');
@@ -607,7 +612,7 @@
                 }
 
                 const timeStamp = new Date().toISOString(); // consider using server response field "created" instead
-                const newMessage = new QuokkaMessage(role, content, type, model, tokenUsage, finishReason, timeStamp);
+                const newMessage = new QuokkaMessage(role, content, type, model, tokenUsage, finishReason, imageOptions, timeStamp);
                 this.conversationHistory.push(newMessage);
                 saveCurrentChat(); // TODO move
                 this.#observers.forEach(o => o.messageAdded?.(newMessage));
@@ -618,9 +623,95 @@
             }
         }
 
+        class QuokkaCostEstimator {
+            // prices below are USD per million tokens
+            static #priceListCompletions = [
+                { model: /^gpt-4-*[0-9]*-preview$/, priceIn: 10, priceOut: 30 },
+                { model: /^gpt-4-*[0-9]*$/, priceIn: 30, priceOut: 60 },
+                { model: /^gpt-3.5-turbo-*[0-9]*$/, priceIn: 0.5, priceOut: 1.5 },
+                { model: /^gpt-4-vision-preview$/, priceIn: 10, priceOut: 30 },
+                { model: /^gpt-4-32k$/, priceIn: 30, priceOut: 60 }
+            ];
+
+            // prices below are USD per image
+            static #priceListImages = [
+                { model: 'dall-e-3', quality: 'standard', size: '1024x1024', price: 0.040 },
+                { model: 'dall-e-3', quality: 'standard', size: '1024x1792', price: 0.080 },
+                { model: 'dall-e-3', quality: 'standard', size: '1792x1024', price: 0.080 },
+                { model: 'dall-e-3', quality: 'hd', size: '1024x1024', price: 0.080 },
+                { model: 'dall-e-3', quality: 'hd', size: '1024x1792', price: 0.120 },
+                { model: 'dall-e-3', quality: 'hd', size: '1792x1024', price: 0.120 },
+                { model: 'dall-e-2', quality: 'standard', size: '1024x1024', price: 0.020 },
+                { model: 'dall-e-2', quality: 'standard', size: '512x512', price: 0.018 },
+                { model: 'dall-e-2', quality: 'standard', size: '256x256', price: 0.016 }
+            ];
+
+            static estimateCost(message) {
+                try {
+                    if (message.type === QuokkaMessageTypes.chat) {
+                        return QuokkaCostEstimator.estimateChatCost(message);
+                    } else if (message.type === QuokkaMessageTypes.image) {
+                        return QuokkaCostEstimator.estimateImageCost(message);
+                    }
+                } catch (error) {
+                    console.error('Failed to estimate cost for message', message, error);
+                }
+                return null;
+            }
+
+            static estimateChatCost(message) {
+                if (!message.model || !message.tokenUsage) {
+                    return null;
+                }
+
+                const model = message.model;
+                const inTokens = message.tokenUsage?.prompt_tokens;
+                const outTokens = message.tokenUsage?.completion_tokens;
+
+                const priceModel = QuokkaCostEstimator.#priceListCompletions.find(p => model.match(p.model));
+                if (!priceModel) {
+                    console.warn('No price found for model', model);
+                    return null;
+                }
+
+                const costIn = priceModel.priceIn * inTokens / 1_000_000;
+                const costOut = priceModel.priceOut * outTokens / 1_000_000;
+
+                return {
+                    costIn,
+                    costOut,
+                    costTotal: costIn + costOut
+                };
+            }
+
+            static estimateImageCost(message) {
+                if (!message.model || !message.imageOptions || !message.imageOptions.size) {
+                    return null;
+                }
+
+                const model = message.model;
+                const size = message.imageOptions.size;
+                const quality = message.imageOptions.quality ?? 'standard';
+
+                const priceModel = QuokkaCostEstimator.#priceListImages.find(p => p.model === model && p.size === size && p.quality === quality);
+                if (!priceModel) {
+                    console.warn('No price found for model', model, 'size', size, 'quality', quality);
+                    return null;
+                }
+
+                return {
+                    costIn: null,
+                    costOut: priceModel.price,
+                    costTotal: priceModel.price
+                };
+            }
+        }
+
         class QuokkaChatRenderer {
             #chat = null;
             #answerDiv = null;
+
+            #totalCostParagraph = null;
 
             constructor(answerDiv) {
                 this.#answerDiv = answerDiv;
@@ -680,6 +771,8 @@
                     answerParagraph.innerHTML += `<br /><span class="message-suffix">Finish reason: ${message.finishReason}</span>`;
                 }
                 this.#answerDiv.append(answerParagraph);
+
+                this.renderTotalCost();
             }
 
             renderMetadata(message) {
@@ -703,10 +796,41 @@
 
                 if (message.timeStamp) {
                     const timeStamp = message.timeStamp ? new Date(message.timeStamp).toLocaleString() : 'unknown';
-                    metadataParagraph.innerHTML += `<span class="time-stamp">🕒${timeStamp}</span>`;
+                    metadataParagraph.innerHTML += `<span class="time-stamp">🕒${timeStamp}. </span>`;
+                }
+
+                const cost = QuokkaCostEstimator.estimateCost(message);
+                if (cost) {
+                    metadataParagraph.innerHTML += `<span class="price">💰Cost: $${cost.costTotal.toFixed(3)} ($${cost.costIn?.toFixed(6) ?? 'n/a'} in, $${cost.costOut?.toFixed(6) ?? 'n/a'} out)</span>`;
                 }
 
                 this.#answerDiv.append(metadataParagraph);
+            }
+
+            renderTotalCost() {
+                const estimatedMessages = this.#chat.conversationHistory
+                    .map(m => QuokkaCostEstimator.estimateCost(m))
+                    .filter(c => c);
+
+                if (estimatedMessages.length === 0) {
+                    return;
+                }
+
+                const totalCost = estimatedMessages.reduce((acc, c) => {
+                    acc.costIn += c.costIn;
+                    acc.costOut += c.costOut;
+                    acc.costTotal += c.costTotal;
+                    return acc;
+                }, { costIn: 0, costOut: 0, costTotal: 0 });
+
+                if (this.#totalCostParagraph) {
+                    this.#totalCostParagraph.remove();
+                }
+
+                this.#totalCostParagraph = document.createElement('p');
+                this.#totalCostParagraph.classList.add('metadata');
+                this.#totalCostParagraph.innerHTML = `Estimated total conversation cost: $${totalCost.costTotal.toFixed(3)} ($${totalCost.costIn.toFixed(6)} in, $${totalCost.costOut.toFixed(6)} out)`;
+                this.#answerDiv.append(this.#totalCostParagraph);
             }
 
             scrollToBottom() {
@@ -876,11 +1000,12 @@
 
             const apiUrl = 'https://api.openai.com/v1/images/generations';
             const imageModel = imageModelSelect.value;
+            const imageSize = imageSizeSelect.value;
             const requestData = {
                 model: imageModel,
                 prompt: prompt,
                 n: 1,
-                size: imageSizeSelect.value,
+                size: imageSize,
                 response_format: 'b64_json' // we have to use this format since fetch by URL is blocked by CORS when read by javascript
             };
 
@@ -910,7 +1035,10 @@
                     response?.data?.forEach(img => {
                         const blob = convertBase64ToBlob(img.b64_json, 'image/png');
 
-                        currentChat.addMessage('assistant', blob, QuokkaMessageTypes.image, imageModel);
+                        currentChat.addMessage('assistant', blob, QuokkaMessageTypes.image, imageModel, null, null, {
+                            size: imageSize,
+                            quality: requestData.quality
+                        });
                         if (img.revised_prompt) {
                             currentChat.addMessage('assistant', `Revised prompt: <em>${img.revised_prompt}</em>`, QuokkaMessageTypes.image);
                         }
@@ -1032,7 +1160,7 @@
             currentChat = new QuokkaChat( // TODO: move to separate storage class
                 chatHistoryItem.id,
                 chatHistoryItem._name, // starting from schema v3, name is stored as pseudo-private _name
-                chatHistoryItem.conversationHistory?.map(m => new QuokkaMessage(m.role, m.content, m.type, m.model, m.tokenUsage, m.finishReason, m.timeStamp))
+                chatHistoryItem.conversationHistory?.map(m => new QuokkaMessage(m.role, m.content, m.type, m.model, m.tokenUsage, m.finishReason, m.imageOptions, m.timeStamp))
             );
             chatRenderer.selectChat(currentChat);
         }
@@ -1128,7 +1256,7 @@
                 }
 
                 const overwriteChats = document.getElementById('overwriteChatsCb').checked;
-                if(!overwriteChats) {
+                if (!overwriteChats) {
                     migratedChats.forEach(ch => delete ch.id);
                 }
 
