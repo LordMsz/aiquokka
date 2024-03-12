@@ -67,6 +67,7 @@ Edit index.html, refresh, enjoy.
 - All communication exposed
   - Use browser's Developer tools to see all network traffic with OpenAI API, explore how it works, make your own!
   - Debug the code directly to dive into how context is kept or how images are received
+  - Create and send System and Assistant messages with single button press
 - Use OpenAI API key
   - Pay as you go, only for what you really use, only the tokens you truly utilized
   - You have an option to add credits to your account balance up front, and hard-stop when depleting it all (this is OpenAI API feature)
