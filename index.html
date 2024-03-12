@@ -115,6 +115,13 @@
             border-right: 0;
         }
 
+        #answer .chat-bubble.system {
+            align-self: center;
+            min-width: 94%;
+            text-align: center;
+            background-color: #e3e3e3;
+        }
+
         #answer .chat-bubble::before {
             position: relative;
             bottom: 8px;
@@ -128,6 +135,10 @@
 
         #answer .chat-bubble.assistant::before {
             content: '🤖 AI';
+        }
+
+        #answer .chat-bubble.system::before {
+            content: '💻';
         }
 
         #answer img {
@@ -259,9 +270,17 @@
             max-height: 10em;
         }
 
+        .inputs>div {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .inputs div.actions {
+            display: flex;
+        }
+
         .inputs button {
-            flex-basis: 1em;
-            align-self: center;
             margin: 0 0 0 0.2em;
             font-size: 3em;
             padding: 0;
@@ -272,6 +291,11 @@
 
         .inputs button:hover {
             background-color: #e4e4e4;
+        }
+
+        .inputs button#messageRoleSwitcher {
+            font-size: 1em;
+            padding: 0.2em 0.5em;
         }
 
         #chatsHistory p {
@@ -395,8 +419,13 @@
             <div class="inputs">
                 <textarea id="mainInput" autofocus
                     oninput="this.style.height=''; this.style.height=this.scrollHeight + 'px'"></textarea>
-                <button class="emoji" id="chat" onclick="sendChat()" title="Send message to chat">💬</button>
-                <button class="emoji" id="image" onclick="generateImage()" title="Generate image">🌄</button>
+                <div>
+                    <button id="messageRoleSwitcher" onclick="toggleMessageRole()" title="Next mesage will be under role 'User'">U</button>
+                    <div class="actions">
+                        <button class="emoji" id="chat" onclick="sendChat()" title="Send message to chat">💬</button>
+                        <button class="emoji" id="image" onclick="generateImage()" title="Generate image">🌄</button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -519,7 +548,7 @@
                 <input type="checkbox" id="overwriteChatsCb" name="overwriteChatsCb" />
             </span>
         </div>
-        <div class="version">v0.1.0</div>
+        <div class="version">v0.1.2</div>
     </div>
     <h2 id="loading" style="visibility: hidden;">Loading...</h2>
 
@@ -533,6 +562,8 @@
         let db = null;
         let currentChat = null;
         let chatRenderer = null;
+
+        let nextMessageRole = null;
 
         let userSelect = null;
         let loadingElement = null;
@@ -552,6 +583,12 @@
         const QuokkaMessageTypes = {
             chat: 'chat',
             image: 'image'
+        };
+
+        const OpenAiMessageRoles = {
+            user: 'user',
+            assistant: 'assistant',
+            system: 'system'
         };
 
         class QuokkaMessage {
@@ -859,6 +896,7 @@
             currentChat = new QuokkaChat();
             chatRenderer = new QuokkaChatRenderer(document.getElementById('answer'));
             chatRenderer.selectChat(currentChat);
+            nextMessageRole = OpenAiMessageRoles.user;
 
             users = JSON.parse(localStorage.getItem(localStorageUsersKey)) ?? [];
 
@@ -935,7 +973,13 @@
             }
 
             const prompt = mainInput.value;
-            currentChat.addMessage('user', prompt, QuokkaMessageTypes.chat);
+            currentChat.addMessage(nextMessageRole, prompt, QuokkaMessageTypes.chat);
+
+            if(nextMessageRole === OpenAiMessageRoles.system) {
+                mainInput.value = '';
+                toggleMessageRole(OpenAiMessageRoles.user);
+                return;
+            }
 
             const apiUrl = 'https://api.openai.com/v1/chat/completions';
             const requestData = {
@@ -1069,6 +1113,16 @@
                 reader.onerror = reject;
                 reader.readAsDataURL(blob);
             });
+        }
+
+        function toggleMessageRole(nextRoleOverride) {
+            const rolesAvailable = [OpenAiMessageRoles.user, OpenAiMessageRoles.assistant, OpenAiMessageRoles.system];
+            const currentRoleIndex = rolesAvailable.indexOf(nextMessageRole);
+            nextMessageRole = nextRoleOverride || rolesAvailable[(currentRoleIndex + 1) % rolesAvailable.length];
+            
+            const messageRoleSwitcher = document.getElementById('messageRoleSwitcher');
+            messageRoleSwitcher.innerText = nextMessageRole[0].toUpperCase();
+            messageRoleSwitcher.title = `Next mesage will be under role '${nextMessageRole}'`;
         }
 
         function addUser() {
