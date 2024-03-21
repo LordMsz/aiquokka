@@ -115,7 +115,8 @@
             border-right: 0;
         }
 
-        #answer .chat-bubble.system {
+        #answer .chat-bubble.system,
+        #answer .chat-bubble.tool {
             align-self: center;
             min-width: 94%;
             text-align: center;
@@ -135,6 +136,14 @@
 
         #answer .chat-bubble.assistant::before {
             content: '🤖 AI';
+        }
+
+        #answer .chat-bubble.assistant.toolCall::before {
+            content: '🛠️ AI';
+        }
+
+        #answer .chat-bubble.tool::before {
+            content: '🛠️👤';
         }
 
         #answer .chat-bubble.system::before {
@@ -239,7 +248,8 @@
         }
 
         div.sidebar>*:last-child {
-            padding-bottom: 8em; /* fix for physical phones */
+            /* fix for physical phones */
+            padding-bottom: 8em;
         }
 
         div.sidebar .version {
@@ -420,7 +430,8 @@
                 <textarea id="mainInput" autofocus
                     oninput="this.style.height=''; this.style.height=this.scrollHeight + 'px'"></textarea>
                 <div>
-                    <button id="messageRoleSwitcher" onclick="toggleMessageRole()" title="Next mesage will be under role 'User'">U</button>
+                    <button id="messageRoleSwitcher" onclick="toggleMessageRole()"
+                        title="Next mesage will be under role 'User'">U</button>
                     <div class="actions">
                         <button class="emoji" id="chat" onclick="sendChat()" title="Send message to chat">💬</button>
                         <button class="emoji" id="image" onclick="generateImage()" title="Generate image">🌄</button>
@@ -544,7 +555,9 @@
             <button onclick="importData()">Import</button>
             <button onclick="exportData()">Export</button>
             <span>
-                <label for="overwriteChatsCb" title="Overwrite existing chats by Id (checked) or append (unchecked)">Overwrite chats</label>
+                <label for="overwriteChatsCb" title="Overwrite existing chats by Id (checked) or append (unchecked)">
+                    Overwrite chats
+                </label>
                 <input type="checkbox" id="overwriteChatsCb" name="overwriteChatsCb" />
             </span>
         </div>
@@ -582,17 +595,19 @@
 
         const QuokkaMessageTypes = {
             chat: 'chat',
-            image: 'image'
+            image: 'image',
+            toolCall: 'toolCall'
         };
 
         const OpenAiMessageRoles = {
             user: 'user',
             assistant: 'assistant',
-            system: 'system'
+            system: 'system',
+            tool: 'tool'
         };
 
         class QuokkaMessage {
-            constructor(role, content, type, model, tokenUsage, finishReason, imageOptions, timeStamp) {
+            constructor(role, content, type, model, tokenUsage, finishReason, imageOptions, timeStamp, toolCallOptions) {
                 this.role = role;
                 this.content = content;
                 this.type = type;
@@ -610,13 +625,36 @@
                     size: imageOptions.size,
                     quality: imageOptions.quality
                 } : null;
+
+                this.toolCallOptions = toolCallOptions ? {
+                    toolCallId: toolCallOptions.toolCallId,
+                    type: toolCallOptions.type,
+                    name: toolCallOptions.name,
+                    arguments: toolCallOptions.arguments
+                } : null;
             }
 
             toOpenAIModel() {
-                return {
+                const result = {
                     role: this.role,
                     content: this.content
                 };
+
+                if (this.type === QuokkaMessageTypes.toolCall && this.role === OpenAiMessageRoles.assistant && this.toolCallOptions) {
+                    result.tool_calls = [{
+                        id: this.toolCallOptions.toolCallId,
+                        type: this.toolCallOptions.type,
+                        function: {
+                            name: this.toolCallOptions.name,
+                            arguments: this.toolCallOptions.arguments
+                        }
+                    }];
+                }
+
+                if (this.type === QuokkaMessageTypes.toolCall && this.role === OpenAiMessageRoles.tool && this.toolCallOptions) {
+                    result.tool_call_id = this.toolCallOptions.toolCallId;
+                }
+                return result;
             }
         }
 
@@ -640,7 +678,7 @@
                 this.#observers.forEach(o => o.nameChanged?.(name));
             }
 
-            addMessage(role, content, type, model, tokenUsage, finishReason, imageOptions) {
+            addMessage(role, content, type, model, tokenUsage, finishReason, imageOptions, toolCallOptions) {
                 if (!this.id || this.id <= 0) {
                     //new chat, get name
                     const name = prompt('Provide name for this chat please, you can change it later');
@@ -649,7 +687,7 @@
                 }
 
                 const timeStamp = new Date().toISOString(); // consider using server response field "created" instead
-                const newMessage = new QuokkaMessage(role, content, type, model, tokenUsage, finishReason, imageOptions, timeStamp);
+                const newMessage = new QuokkaMessage(role, content, type, model, tokenUsage, finishReason, imageOptions, timeStamp, toolCallOptions);
                 this.conversationHistory.push(newMessage);
                 saveCurrentChat(); // TODO move
                 this.#observers.forEach(o => o.messageAdded?.(newMessage));
@@ -685,7 +723,7 @@
 
             static estimateCost(message) {
                 try {
-                    if (message.type === QuokkaMessageTypes.chat) {
+                    if (message.type === QuokkaMessageTypes.chat || message.type === QuokkaMessageTypes.toolCall) {
                         return QuokkaCostEstimator.estimateChatCost(message);
                     } else if (message.type === QuokkaMessageTypes.image) {
                         return QuokkaCostEstimator.estimateImageCost(message);
@@ -796,16 +834,23 @@
                 this.renderMetadata(message);
 
                 const answerParagraph = document.createElement('p');
-                answerParagraph.classList.add('chat-bubble', role);
+                answerParagraph.classList.add('chat-bubble', role, type);
                 if (type === QuokkaMessageTypes.image && role === 'assistant' && content instanceof Blob) {
                     const img = document.createElement('img');
                     img.src = URL.createObjectURL(content);
                     answerParagraph.append(img);
+                } else if (type === QuokkaMessageTypes.toolCall && role === 'assistant') {
+                    answerParagraph.innerHTML += `Tool call: '${message?.toolCallOptions?.name}' will be called with arguments: ${message?.toolCallOptions?.arguments}`;
+                } else if (type === QuokkaMessageTypes.toolCall && role === 'tool') {
+                    answerParagraph.innerHTML += `Tool call result: ${content}`;
                 } else {
-                    answerParagraph.innerHTML += content.replace(/\n/g, '<br />');
+                    answerParagraph.innerHTML += content?.replace(/\n/g, '<br />');
                 }
                 if (message?.finishReason) {
                     answerParagraph.innerHTML += `<br /><span class="message-suffix">Finish reason: ${message.finishReason}</span>`;
+                }
+                if (message?.toolCallOptions?.toolCallId) {
+                    answerParagraph.innerHTML += `<br /><span class="message-suffix">Tool call ID: ${message.toolCallOptions.toolCallId}</span>`;
                 }
                 this.#answerDiv.append(answerParagraph);
 
@@ -966,16 +1011,18 @@
             return chat;
         }
 
-        function sendChat() {
+        function sendChat(skipInput) {
             if (!currentUser) {
                 alert('No user selected');
                 return;
             }
 
-            const prompt = mainInput.value;
-            currentChat.addMessage(nextMessageRole, prompt, QuokkaMessageTypes.chat);
+            if (!skipInput) {
+                const prompt = mainInput.value;
+                currentChat.addMessage(nextMessageRole, prompt, QuokkaMessageTypes.chat);
+            }
 
-            if(nextMessageRole === OpenAiMessageRoles.system) {
+            if (nextMessageRole === OpenAiMessageRoles.system) {
                 mainInput.value = '';
                 toggleMessageRole(OpenAiMessageRoles.user);
                 return;
@@ -993,6 +1040,25 @@
                 frequency_penalty: +frequencyPenaltyInput?.value || 0,
                 presence_penalty: +presencePenaltyInput?.value || 0,
                 seed: +seedInput?.value || null,
+                tools: [
+                    {
+                        type: 'function',
+                        function: {
+                            name: 'get_user_name',
+                            description: 'Get the user name',
+                            parameters: {
+                                type: 'object',
+                                properties: {
+                                    type: {
+                                        type: 'string',
+                                        enum: ['first', 'last', 'full']
+                                    }
+                                },
+                                required: ['type']
+                            }
+                        }
+                    }
+                ]
             };
             const headers = {
                 'Content-Type': 'application/json',
@@ -1011,8 +1077,43 @@
 
                     data?.choices?.forEach((choice, index) => {
                         const isFirst = index === 0;
-                        currentChat.addMessage(choice?.message?.role, choice?.message?.content, QuokkaMessageTypes.chat,
+                        const content = choice?.message?.content || (choice?.message?.tool_calls ? 'I decided to call available tools:' : null);
+                        currentChat.addMessage(choice?.message?.role, content, QuokkaMessageTypes.chat,
                             isFirst ? data?.model : null, isFirst ? data?.usage : null, choice?.finish_reason);
+                        // TODO: consider adding the tool call data to the history
+
+                        choice?.message?.tool_calls?.forEach(toolCall => {
+                            const toolType = toolCall?.type;
+                            const toolCallId = toolCall?.id;
+                            if (toolType === 'function') {
+                                currentChat.addMessage(choice?.message?.role, null,
+                                    QuokkaMessageTypes.toolCall, null, null, null, null,
+                                    { toolCallId, type: 'function', name: toolCall?.function?.name, arguments: toolCall?.function?.arguments });
+
+                                if (toolCall?.function?.name === 'get_user_name') {
+                                    const f = function (type) {
+                                        if (type === 'first') {
+                                            return 'Tom';
+                                        }
+
+                                        if (type === 'last') {
+                                            return 'Riddle';
+                                        }
+
+                                        if (type === 'full') {
+                                            return 'Tom Riddle';
+                                        }
+                                    };
+
+                                    const parsedArguments = JSON.parse(toolCall?.function?.arguments);
+                                    const result = f(parsedArguments?.type);
+
+                                    currentChat.addMessage(OpenAiMessageRoles.tool, result, QuokkaMessageTypes.toolCall, null, null, null, null, { toolCallId });
+
+                                    sendChat(true);
+                                }
+                            }
+                        });
                     });
                     mainInput.value = '';
                 })
@@ -1119,7 +1220,7 @@
             const rolesAvailable = [OpenAiMessageRoles.user, OpenAiMessageRoles.assistant, OpenAiMessageRoles.system];
             const currentRoleIndex = rolesAvailable.indexOf(nextMessageRole);
             nextMessageRole = nextRoleOverride || rolesAvailable[(currentRoleIndex + 1) % rolesAvailable.length];
-            
+
             const messageRoleSwitcher = document.getElementById('messageRoleSwitcher');
             messageRoleSwitcher.innerText = nextMessageRole[0].toUpperCase();
             messageRoleSwitcher.title = `Next mesage will be under role '${nextMessageRole}'`;
@@ -1214,7 +1315,7 @@
             currentChat = new QuokkaChat( // TODO: move to separate storage class
                 chatHistoryItem.id,
                 chatHistoryItem._name, // starting from schema v3, name is stored as pseudo-private _name
-                chatHistoryItem.conversationHistory?.map(m => new QuokkaMessage(m.role, m.content, m.type, m.model, m.tokenUsage, m.finishReason, m.imageOptions, m.timeStamp))
+                chatHistoryItem.conversationHistory?.map(m => new QuokkaMessage(m.role, m.content, m.type, m.model, m.tokenUsage, m.finishReason, m.imageOptions, m.timeStamp, m.toolCallOptions))
             );
             chatRenderer.selectChat(currentChat);
         }
