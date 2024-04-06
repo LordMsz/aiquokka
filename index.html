@@ -1218,6 +1218,7 @@
                                         if (toolName && toolDescription && toolUrl) {
                                             const newTool = new QuokkaTool(toolName, toolDescription, toolUrl, parametersSchema, false);
                                             tools.push(newTool);
+                                            saveCurrentTools();
                                             currentChat.addMessage(OpenAiMessageRoles.tool, `Tool ${toolName} integrated successfully`, QuokkaMessageTypes.toolCall, null, null, null, null, { toolCallId });
                                         } else {
                                             currentChat.addMessage(OpenAiMessageRoles.tool, 'Failed to integrate tool, missing required parameters', QuokkaMessageTypes.toolCall, null, null, null, null, { toolCallId });
