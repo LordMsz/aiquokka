@@ -1079,6 +1079,20 @@
                 db = conn.result;
                 console.log('IndexedDB opened successfully, conversations will be recorded');
                 versionElement.innerHTML += `, DB v${db.version}`;
+
+                const t = db.transaction('tools', 'readonly');
+                const store = t.objectStore('tools');
+
+                const query = store.getAll();
+                query.onsuccess = () => {
+                    tools = query.result?.map(t => new QuokkaTool(t.name, t.description, t.url, t.parametersSchema, t.active)) ?? [];
+                    console.log('Tools loaded from IndexedDB', tools);
+                };
+
+                query.onerror = (e) => {
+                    console.error('Failed to load tools from IndexedDB', e);
+                    alert('Failed to load tools from IndexedDB, see console');
+                };
             };
 
             conn.onerror = (e) => {
@@ -1495,15 +1509,18 @@
                     existingTool.description = description;
                     existingTool.parametersSchema = params;
                     existingTool.active = active;
-                    toolDiv.remove();
 
+                    saveCurrentTools();
+
+                    toolDiv.remove();
                     renderTools();
                     return;
                 }
 
                 tools.push(new QuokkaTool(name, description, url, params, active));
-                toolDiv.remove();
+                saveCurrentTools();
 
+                toolDiv.remove();
                 renderTools();
             };
 
@@ -1524,6 +1541,22 @@
             tools?.forEach(t => {
                 renderTool(t);
             });
+        }
+
+        function saveCurrentTools() {
+            const t = db.transaction('tools', 'readwrite');
+            const store = t.objectStore('tools');
+
+            const clearQuery = store.clear();
+            clearQuery.onsuccess = () => {
+                tools.forEach(t => {
+                    store.put(t);
+                });
+            };
+            clearQuery.onerror = (e) => {
+                console.error('Failed to clear tools from IndexedDB', e);
+                alert('Failed to clear tools from IndexedDB, see console');
+            };
         }
 
         function renderChatsHistory() {
