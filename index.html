@@ -1188,7 +1188,6 @@
                         const content = choice?.message?.content || (choice?.message?.tool_calls ? 'I decided to call available tools:' : null);
                         currentChat.addMessage(choice?.message?.role, content, QuokkaMessageTypes.chat,
                             isFirst ? data?.model : null, isFirst ? data?.usage : null, choice?.finish_reason);
-                        // TODO: consider adding the tool call data to the history
 
                         choice?.message?.tool_calls?.forEach(toolCall => {
                             const toolType = toolCall?.type;
@@ -1270,53 +1269,7 @@
 
                                 currentChat.addMessage(OpenAiMessageRoles.tool, 'Requested tool not found.', QuokkaMessageTypes.toolCall, null, null, null, null, { toolCallId });
                                 sendChat(true);
-
-                                // if (toolCall?.function?.name === 'get_user_name') {
-                                //     const f = function (type) {
-                                //         if (type === 'first') {
-                                //             return 'Tom';
-                                //         }
-
-                                //         if (type === 'last') {
-                                //             return 'Riddle';
-                                //         }
-
-                                //         if (type === 'full') {
-                                //             return 'Tom Riddle';
-                                //         }
-                                //     };
-
-                                //     const result = f(parsedArguments?.type);
-                                //     currentChat.addMessage(OpenAiMessageRoles.tool, result, QuokkaMessageTypes.toolCall, null, null, null, null, { toolCallId });
-                                //     sendChat(true);
-                                // }
-
-                                // if (toolCall?.function?.name === 'get_user_information' && parsedArguments?.id) {
-                                //     fetch(`https://reqres.in/api/users/${parsedArguments.id}`)
-                                //         .then(response => response.json())
-                                //         .then(data => {
-                                //             const result = JSON.stringify(data?.data);
-                                //             currentChat.addMessage(OpenAiMessageRoles.tool, result, QuokkaMessageTypes.toolCall, null, null, null, null, { toolCallId });
-                                //             sendChat(true);
-                                //         });
-                                // }
-
-                                // if (toolCall?.function?.name === 'get_user_list') {
-                                //     fetch('https://reqres.in/api/users?page=1')
-                                //         .then(response => response.json())
-                                //         .then(data => {
-                                //             const result = JSON.stringify(data?.data.map(u => ({ id: u.id, name: u.first_name + ' ' + u.last_name })));
-                                //             currentChat.addMessage(OpenAiMessageRoles.tool, result, QuokkaMessageTypes.toolCall, null, null, null, null, { toolCallId });
-                                //             sendChat(true);
-                                //         });
-                                // }
                             }
-
-                            // TODO: no matter what, tool call needs to get an answer, even if inexistent or failed
-                            // if (!currentToolCallAnswered) {
-                            //     currentChat.addMessage(OpenAiMessageRoles.tool, 'Tool call failed, no such tool or failed to execute', QuokkaMessageTypes.toolCall, null, null, null, null, { toolCallId });
-                            //     sendChat(true);
-                            // }
                         });
                     });
                     mainInput.value = '';
