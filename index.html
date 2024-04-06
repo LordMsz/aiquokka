@@ -312,6 +312,28 @@
             padding: 0.2em 0.5em;
         }
 
+        /* Tools styles */
+        #toolsList>div {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+            margin: 1em;
+        }
+
+        #toolsList>div input[type="text"] {
+            flex-grow: 1;
+        }
+
+        #toolsList>div input:nth-child(2) {
+            font-weight: bold;
+        }
+
+        #toolsList>div textarea {
+            width: 100%;
+        }
+
+
+        /* Chat history styles */
         #chatsHistory p {
             margin: 0.4em;
             padding: 1em 0.6em;
@@ -552,7 +574,7 @@
             </div>
         </div>
         <h2 title="Tools available in all chats">Global tools</h2>
-        <div class="params">
+        <div>
             <button onclick="addTool()">🛠️ Add global tool</button>
             <div id="toolsList"></div>
         </div>
@@ -1445,6 +1467,11 @@
         }
 
         function renderTool(existingTool, isBuiltIn = false) {
+            const activeCb = document.createElement('input');
+            activeCb.type = 'checkbox';
+            activeCb.title = 'Active/Inactive tool, when inactive, it reduces amount of tokens sent = cost of the chat';
+            activeCb.checked = existingTool?.active;
+
             const nameInput = document.createElement('input');
             nameInput.type = 'text';
             nameInput.placeholder = 'Tool name (unique)';
@@ -1461,14 +1488,9 @@
             descriptionInput.value = existingTool?.description ?? '';
 
             const paramsInput = document.createElement('textarea');
-            paramsInput.placeholder = 'Tool parameters (JSON)';
+            paramsInput.placeholder = 'Tool parameters (JSON schema)';
             paramsInput.rows = 3;
             paramsInput.value = existingTool?.parametersSchema ? JSON.stringify(existingTool.parametersSchema) : null;
-
-            const activeCb = document.createElement('input');
-            activeCb.type = 'checkbox';
-            activeCb.title = 'Active/Inactive tool, when inactive, it reduces amount of tokens sent = cost of the chat';
-            activeCb.checked = existingTool?.active;
 
             if (isBuiltIn) {
                 nameInput.disabled = true;
@@ -1485,7 +1507,7 @@
             deleteButton.innerText = 'Delete';
 
             const toolDiv = document.createElement('div');
-            toolDiv.append(nameInput, urlInput, descriptionInput, paramsInput, activeCb, saveButton, cancelButton);
+            toolDiv.append(activeCb, nameInput, urlInput, descriptionInput, paramsInput, saveButton, cancelButton);
             if (!isBuiltIn) {
                 toolDiv.append(deleteButton);
             }

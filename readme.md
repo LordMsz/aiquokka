@@ -106,6 +106,31 @@ Edit index.html, refresh, enjoy.
   - AI will understand the prompt and request a "tool call" with parameters (hopefully) matching the API call you expect
   - the tool call will add the tool to supported list and answer to AI with result of the operation
   - then, directly in same chat, you can ask AI to use that tool (has to be activated)
+- General tool can be made by
+  - passing in URL, e.g. https://reqres.in/api/{resource_type}?page={page}
+  - specifying name and description
+  - specifying parameters JSON Schema, fields inside it should match expected variables in the URL
+  - e.g. for above, schema can be:
+
+``` JSON Schema
+{
+    "type": "object",
+    "properties": {
+        "resource_type": {
+            "type": "string",
+            "description": "The type of resource to retrieve from the database."
+        },
+        "page": {
+            "type": "integer",
+            "description": "The page number to retrieve, allowing for pagination through the list of resources."
+        }
+    },
+    "required": [
+        "resource_type",
+        "page"
+    ]
+}
+```
 
 ## Contributing
 
