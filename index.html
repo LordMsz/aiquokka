@@ -1480,8 +1480,14 @@
             const cancelButton = document.createElement('button');
             cancelButton.innerText = 'Cancel';
 
+            const deleteButton = document.createElement('button');
+            deleteButton.innerText = 'Delete';
+
             const toolDiv = document.createElement('div');
             toolDiv.append(nameInput, urlInput, descriptionInput, paramsInput, activeCb, saveButton, cancelButton);
+            if (!isBuiltIn) {
+                toolDiv.append(deleteButton);
+            }
             toolsListContainer.append(toolDiv);
 
             saveButton.onclick = () => {
@@ -1525,9 +1531,22 @@
             };
 
             cancelButton.onclick = () => {
-                toolDiv.remove();
+                if (!existingTool) {
+                    toolDiv.remove();
+                }
+            };
 
-                renderTools();
+            deleteButton.onclick = () => {
+                if (!confirm('Are you sure you want to delete this tool?')) {
+                    return;
+                }
+
+                const index = tools.indexOf(existingTool);
+                if (index > -1) {
+                    tools.splice(index, 1);
+                    saveCurrentTools();
+                    renderTools();
+                }
             };
         }
 
