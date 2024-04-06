@@ -1508,6 +1508,13 @@
                     return;
                 }
 
+                // todo check for unique name of the tool
+                const duplicateNameTool = tools.find(t => t.name === name && t !== existingTool);
+                if (duplicateNameTool) {
+                    alert('Tool with this name already exists');
+                    return;
+                }
+
                 if (existingTool) {
                     // update existing tool
                     existingTool.name = name;
