@@ -97,7 +97,7 @@ Edit index.html, refresh, enjoy.
 
 ### Tools support
 - Tools provide AI assistant with option to ask you (your client application) to do something, e.g. call API endpoint with certain parameters
-- Expetimentally added tool "integrate tool" can be used to integrate any API (GET only) using only prompts
+- Experimentally added tool "integrate tool" can be used to integrate any API (GET only) using only prompts
 - Example:
   - you need to enable "built_in_integrate_tool" tool and save it
   - then in a chat, you ask AI to "Integrate a tool for you"
