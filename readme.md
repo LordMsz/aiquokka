@@ -68,6 +68,12 @@ Edit index.html, refresh, enjoy.
   - Use browser's Developer tools to see all network traffic with OpenAI API, explore how it works, make your own!
   - Debug the code directly to dive into how context is kept or how images are received
   - Create and send System and Assistant messages with single button press
+- Tools support for integration, RAG and more
+  - Using tools (aka functions) called by AI to allow interaction with your API and more!
+  - Contains few built-in tools that AI can call on demand, such as "generate image" that uses your current image generator setup
+  - (experimental) Has built-in function to auto-integrate any API using only chat with assistant (see notes below)
+  - Tools can be de/activated to save token counts; all saved in IndexedDB locally
+  - All tools are shared across all chats at the moment (an improvement for later?)
 - Use OpenAI API key
   - Pay as you go, only for what you really use, only the tokens you truly utilized
   - You have an option to add credits to your account balance up front, and hard-stop when depleting it all (this is OpenAI API feature)
@@ -88,6 +94,43 @@ Edit index.html, refresh, enjoy.
   - Ctrl + Enter to send a chat on desktop (thx for contribution D!)
   - Swipe left and right to toggle the menu
   - Edit a chat name by clicking it
+
+### Tools support
+- Tools provide AI assistant with option to ask you (your client application) to do something, e.g. call API endpoint with certain parameters
+- Experimentally added tool "integrate tool" can be used to integrate any API (GET only) using only prompts
+- Example:
+  - you need to enable "built_in_integrate_tool" tool and save it
+  - then in a chat, you ask AI to "Integrate a tool for you"
+  - AI will instruct you on what parameters it needs, you can still explain that in natural language
+  - e.g. "I'd like to integrate a tool to this conversation. It's a tool to get resources from our system. URL looks following: https://reqres.in/api/flower?page=1 where "flower" is type of resource and "page=1" allows going through pages of list"
+  - AI will understand the prompt and request a "tool call" with parameters (hopefully) matching the API call you expect
+  - the tool call will add the tool to supported list and answer to AI with result of the operation
+  - then, directly in same chat, you can ask AI to use that tool (has to be activated)
+- General tool can be made by
+  - passing in URL, e.g. https://reqres.in/api/{resource_type}?page={page}
+  - specifying name and description
+  - specifying parameters JSON Schema, fields inside it should match expected variables in the URL
+  - e.g. for above, schema can be:
+
+``` JSON Schema
+{
+    "type": "object",
+    "properties": {
+        "resource_type": {
+            "type": "string",
+            "description": "The type of resource to retrieve from the database."
+        },
+        "page": {
+            "type": "integer",
+            "description": "The page number to retrieve, allowing for pagination through the list of resources."
+        }
+    },
+    "required": [
+        "resource_type",
+        "page"
+    ]
+}
+```
 
 ## Contributing
 

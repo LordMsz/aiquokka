@@ -115,7 +115,8 @@
             border-right: 0;
         }
 
-        #answer .chat-bubble.system {
+        #answer .chat-bubble.system,
+        #answer .chat-bubble.tool {
             align-self: center;
             min-width: 94%;
             text-align: center;
@@ -133,8 +134,20 @@
             content: '👤';
         }
 
+        #answer .chat-bubble.user.image::before {
+            content: '👤🖼️';
+        }
+
         #answer .chat-bubble.assistant::before {
             content: '🤖 AI';
+        }
+
+        #answer .chat-bubble.assistant.toolCall::before {
+            content: '🛠️ AI';
+        }
+
+        #answer .chat-bubble.tool::before {
+            content: '🛠️👤';
         }
 
         #answer .chat-bubble.system::before {
@@ -239,7 +252,8 @@
         }
 
         div.sidebar>*:last-child {
-            padding-bottom: 8em; /* fix for physical phones */
+            /* fix for physical phones */
+            padding-bottom: 8em;
         }
 
         div.sidebar .version {
@@ -298,6 +312,27 @@
             padding: 0.2em 0.5em;
         }
 
+        /* Tools styles */
+        #toolsList>div {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+            margin: 1em;
+        }
+
+        #toolsList>div input[type="text"] {
+            flex-grow: 1;
+        }
+
+        #toolsList>div input:nth-child(2) {
+            font-weight: bold;
+        }
+
+        #toolsList>div textarea {
+            width: 100%;
+        }
+
+        /* Chat history styles */
         #chatsHistory p {
             margin: 0.4em;
             padding: 1em 0.6em;
@@ -420,7 +455,8 @@
                 <textarea id="mainInput" autofocus
                     oninput="this.style.height=''; this.style.height=this.scrollHeight + 'px'"></textarea>
                 <div>
-                    <button id="messageRoleSwitcher" onclick="toggleMessageRole()" title="Next mesage will be under role 'User'">U</button>
+                    <button id="messageRoleSwitcher" onclick="toggleMessageRole()"
+                        title="Next mesage will be under role 'User'">U</button>
                     <div class="actions">
                         <button class="emoji" id="chat" onclick="sendChat()" title="Send message to chat">💬</button>
                         <button class="emoji" id="image" onclick="generateImage()" title="Generate image">🌄</button>
@@ -522,7 +558,8 @@
                 <label for="imageDisableRevisedPromptCb">Disable revised prompt (Dall-e 3)</label>
                 <input type="checkbox" id="imageDisableRevisedPromptCb" name="imageDisableRevisedPromptCb" />
             </div>
-            <div title="If checked, creates images with finer details and greater consistency across the image; but for double/higher price https://openai.com/pricing">
+            <div
+                title="If checked, creates images with finer details and greater consistency across the image; but for double/higher price https://openai.com/pricing">
                 <label for="imageQualityHdCb">HD quality (Dall-e 3)</label>
                 <input type="checkbox" id="imageQualityHdCb" name="imageQualityHdCb" />
             </div>
@@ -535,6 +572,11 @@
                 </select>
             </div>
         </div>
+        <h2 title="Tools available in all chats">Global tools</h2>
+        <div>
+            <button onclick="addTool()">🛠️ Add global tool</button>
+            <div id="toolsList"></div>
+        </div>
         <h1>Your conversations</h1>
         <div id="chatsHistory"></div>
         <div id="storageStats"></div>
@@ -544,11 +586,13 @@
             <button onclick="importData()">Import</button>
             <button onclick="exportData()">Export</button>
             <span>
-                <label for="overwriteChatsCb" title="Overwrite existing chats by Id (checked) or append (unchecked)">Overwrite chats</label>
+                <label for="overwriteChatsCb" title="Overwrite existing chats by Id (checked) or append (unchecked)">
+                    Overwrite chats
+                </label>
                 <input type="checkbox" id="overwriteChatsCb" name="overwriteChatsCb" />
             </span>
         </div>
-        <div class="version">v0.1.2</div>
+        <div class="version">v0.1.3</div>
     </div>
     <h2 id="loading" style="visibility: hidden;">Loading...</h2>
 
@@ -562,6 +606,9 @@
         let db = null;
         let currentChat = null;
         let chatRenderer = null;
+
+        let tools = null;
+        let builtInTools = null;
 
         let nextMessageRole = null;
 
@@ -579,20 +626,23 @@
         let presencePenaltyInput = null;
         let seedInput = null;
         let versionElement = null;
+        let toolsListContainer = null;
 
         const QuokkaMessageTypes = {
             chat: 'chat',
-            image: 'image'
+            image: 'image',
+            toolCall: 'toolCall'
         };
 
         const OpenAiMessageRoles = {
             user: 'user',
             assistant: 'assistant',
-            system: 'system'
+            system: 'system',
+            tool: 'tool'
         };
 
         class QuokkaMessage {
-            constructor(role, content, type, model, tokenUsage, finishReason, imageOptions, timeStamp) {
+            constructor(role, content, type, model, tokenUsage, finishReason, imageOptions, timeStamp, toolCallOptions) {
                 this.role = role;
                 this.content = content;
                 this.type = type;
@@ -610,13 +660,36 @@
                     size: imageOptions.size,
                     quality: imageOptions.quality
                 } : null;
+
+                this.toolCallOptions = toolCallOptions ? {
+                    toolCallId: toolCallOptions.toolCallId,
+                    type: toolCallOptions.type,
+                    name: toolCallOptions.name,
+                    arguments: toolCallOptions.arguments
+                } : null;
             }
 
             toOpenAIModel() {
-                return {
+                const result = {
                     role: this.role,
                     content: this.content
                 };
+
+                if (this.type === QuokkaMessageTypes.toolCall && this.role === OpenAiMessageRoles.assistant && this.toolCallOptions) {
+                    result.tool_calls = [{
+                        id: this.toolCallOptions.toolCallId,
+                        type: this.toolCallOptions.type,
+                        function: {
+                            name: this.toolCallOptions.name,
+                            arguments: this.toolCallOptions.arguments
+                        }
+                    }];
+                }
+
+                if (this.type === QuokkaMessageTypes.toolCall && this.role === OpenAiMessageRoles.tool && this.toolCallOptions) {
+                    result.tool_call_id = this.toolCallOptions.toolCallId;
+                }
+                return result;
             }
         }
 
@@ -640,7 +713,7 @@
                 this.#observers.forEach(o => o.nameChanged?.(name));
             }
 
-            addMessage(role, content, type, model, tokenUsage, finishReason, imageOptions) {
+            addMessage(role, content, type, model, tokenUsage, finishReason, imageOptions, toolCallOptions) {
                 if (!this.id || this.id <= 0) {
                     //new chat, get name
                     const name = prompt('Provide name for this chat please, you can change it later');
@@ -649,7 +722,7 @@
                 }
 
                 const timeStamp = new Date().toISOString(); // consider using server response field "created" instead
-                const newMessage = new QuokkaMessage(role, content, type, model, tokenUsage, finishReason, imageOptions, timeStamp);
+                const newMessage = new QuokkaMessage(role, content, type, model, tokenUsage, finishReason, imageOptions, timeStamp, toolCallOptions);
                 this.conversationHistory.push(newMessage);
                 saveCurrentChat(); // TODO move
                 this.#observers.forEach(o => o.messageAdded?.(newMessage));
@@ -685,7 +758,7 @@
 
             static estimateCost(message) {
                 try {
-                    if (message.type === QuokkaMessageTypes.chat) {
+                    if (message.type === QuokkaMessageTypes.chat || message.type === QuokkaMessageTypes.toolCall) {
                         return QuokkaCostEstimator.estimateChatCost(message);
                     } else if (message.type === QuokkaMessageTypes.image) {
                         return QuokkaCostEstimator.estimateImageCost(message);
@@ -796,16 +869,23 @@
                 this.renderMetadata(message);
 
                 const answerParagraph = document.createElement('p');
-                answerParagraph.classList.add('chat-bubble', role);
+                answerParagraph.classList.add('chat-bubble', role, type);
                 if (type === QuokkaMessageTypes.image && role === 'assistant' && content instanceof Blob) {
                     const img = document.createElement('img');
                     img.src = URL.createObjectURL(content);
                     answerParagraph.append(img);
+                } else if (type === QuokkaMessageTypes.toolCall && role === 'assistant') {
+                    answerParagraph.innerHTML += `Tool call: '${message?.toolCallOptions?.name}' will be called with arguments: ${message?.toolCallOptions?.arguments}`;
+                } else if (type === QuokkaMessageTypes.toolCall && role === 'tool') {
+                    answerParagraph.innerHTML += `Tool call result: ${content}`;
                 } else {
-                    answerParagraph.innerHTML += content.replace(/\n/g, '<br />');
+                    answerParagraph.innerHTML += content?.replace(/\n/g, '<br />');
                 }
                 if (message?.finishReason) {
                     answerParagraph.innerHTML += `<br /><span class="message-suffix">Finish reason: ${message.finishReason}</span>`;
+                }
+                if (message?.toolCallOptions?.toolCallId) {
+                    answerParagraph.innerHTML += `<br /><span class="message-suffix">Tool call ID: ${message.toolCallOptions.toolCallId}</span>`;
                 }
                 this.#answerDiv.append(answerParagraph);
 
@@ -877,6 +957,32 @@
             }
         }
 
+        class QuokkaTool {
+            constructor(name, description, url, parametersSchema, active) {
+                this.name = name;
+                this.description = description;
+                this.url = url;
+                this.parametersSchema = parametersSchema;
+                this.active = active;
+            }
+
+            toOpenAIModel() {
+                const result = {
+                    type: 'function',
+                    function: {
+                        name: this.name,
+                        description: this.description
+                    }
+                };
+
+                if (this.parametersSchema) {
+                    result.function.parameters = this.parametersSchema;
+                }
+
+                return result;
+            }
+        }
+
         function init() {
             userSelect = document.getElementById('userSelect');
             loadingElement = document.getElementById('loading');
@@ -892,11 +998,50 @@
             presencePenaltyInput = document.getElementById('presencePenaltyInput');
             seedInput = document.getElementById('seedInput');
             versionElement = document.querySelector('.version');
+            toolsListContainer = document.getElementById('toolsList');
 
             currentChat = new QuokkaChat();
             chatRenderer = new QuokkaChatRenderer(document.getElementById('answer'));
             chatRenderer.selectChat(currentChat);
             nextMessageRole = OpenAiMessageRoles.user;
+
+            tools = [];
+            builtInTools = [
+                new QuokkaTool(
+                    'built_in_generate_image',
+                    'Generate image based on text prompt and show it to user in conversation',
+                    null,
+                    {
+                        type: 'object',
+                        properties: { prompt: { type: 'string', description: 'Prompt for the image generation' } },
+                        required: ['prompt']
+                    },
+                    false
+                ),
+                new QuokkaTool(
+                    'built_in_get_date_time',
+                    'Get current date and time',
+                    null,
+                    null,
+                    false
+                ),
+                new QuokkaTool(
+                    'built_in_integrate_tool',
+                    'Integrate external tool into the conversation',
+                    null,
+                    {
+                        type: 'object',
+                        properties: {
+                            toolName: { type: 'string', description: 'Name of the tool to integrate, preferably in format my_new_tool' },
+                            toolDescription: { type: 'string', description: 'Description of the tool' },
+                            toolUrl: { type: 'string', description: 'URL to the tool in the format http://mytool.com/{parameter1}/{parameter2}?key={key}&key2={key2}' },
+                            parametersSchema: { type: 'object', description: 'JSON schema object for the tool parameters' }
+                        },
+                        required: ['toolName', 'toolDescription', 'toolUrl']
+                    },
+                    false
+                )
+            ];
 
             users = JSON.parse(localStorage.getItem(localStorageUsersKey)) ?? [];
 
@@ -904,7 +1049,7 @@
 
             updateUsers();
 
-            const conn = indexedDB.open('quokkaDb', 3);
+            const conn = indexedDB.open('quokkaDb', 4);
 
             conn.onupgradeneeded = (e) => {
                 db = conn.result;
@@ -943,12 +1088,32 @@
                         conn.transaction.abort();
                     };
                 }
+
+                if (oldVersion < 4) { // v3 -> v4
+                    // add tools to the schema
+                    db.createObjectStore('tools', { keyPath: 'name' });
+                    console.log('IndexedDB schema v4 applied');
+                }
             };
 
             conn.onsuccess = () => {
                 db = conn.result;
                 console.log('IndexedDB opened successfully, conversations will be recorded');
                 versionElement.innerHTML += `, DB v${db.version}`;
+
+                const t = db.transaction('tools', 'readonly');
+                const store = t.objectStore('tools');
+
+                const query = store.getAll();
+                query.onsuccess = () => {
+                    tools = query.result?.map(t => new QuokkaTool(t.name, t.description, t.url, t.parametersSchema, t.active)) ?? [];
+                    console.log('Tools loaded from IndexedDB', tools);
+                };
+
+                query.onerror = (e) => {
+                    console.error('Failed to load tools from IndexedDB', e);
+                    alert('Failed to load tools from IndexedDB, see console');
+                };
             };
 
             conn.onerror = (e) => {
@@ -966,16 +1131,18 @@
             return chat;
         }
 
-        function sendChat() {
+        function sendChat(skipInput) {
             if (!currentUser) {
                 alert('No user selected');
                 return;
             }
 
-            const prompt = mainInput.value;
-            currentChat.addMessage(nextMessageRole, prompt, QuokkaMessageTypes.chat);
+            if (!skipInput) {
+                const prompt = mainInput.value;
+                currentChat.addMessage(nextMessageRole, prompt, QuokkaMessageTypes.chat);
+            }
 
-            if(nextMessageRole === OpenAiMessageRoles.system) {
+            if (nextMessageRole === OpenAiMessageRoles.system) {
                 mainInput.value = '';
                 toggleMessageRole(OpenAiMessageRoles.user);
                 return;
@@ -992,8 +1159,14 @@
                 top_p: +topPInput?.value || 1,
                 frequency_penalty: +frequencyPenaltyInput?.value || 0,
                 presence_penalty: +presencePenaltyInput?.value || 0,
-                seed: +seedInput?.value || null,
+                seed: +seedInput?.value || null
             };
+
+            const availableTools = [...builtInTools, ...tools].filter(t => t.active).map(t => t.toOpenAIModel());
+            if (availableTools.length > 0) {
+                requestData.tools = availableTools;
+            }
+
             const headers = {
                 'Content-Type': 'application/json',
                 Authorization: `Bearer ${currentUser.openAIToken}`,
@@ -1011,8 +1184,92 @@
 
                     data?.choices?.forEach((choice, index) => {
                         const isFirst = index === 0;
-                        currentChat.addMessage(choice?.message?.role, choice?.message?.content, QuokkaMessageTypes.chat,
+                        const content = choice?.message?.content || (choice?.message?.tool_calls ? 'I decided to call available tools:' : null);
+                        currentChat.addMessage(choice?.message?.role, content, QuokkaMessageTypes.chat,
                             isFirst ? data?.model : null, isFirst ? data?.usage : null, choice?.finish_reason);
+
+                        choice?.message?.tool_calls?.forEach(toolCall => {
+                            const toolType = toolCall?.type;
+                            const toolCallId = toolCall?.id;
+                            if (toolType === 'function') {
+                                currentChat.addMessage(choice?.message?.role, null,
+                                    QuokkaMessageTypes.toolCall, null, null, null, null,
+                                    { toolCallId, type: 'function', name: toolCall?.function?.name, arguments: toolCall?.function?.arguments });
+                                // TODO: tool call "question" and "answer" need to be saved in order
+                                // means if two tools are called, the first tool call "question" and "answer" should be saved before the second tool call "question" and "answer"
+
+                                const parsedArguments = JSON.parse(toolCall?.function?.arguments);
+
+                                const toolMatch = [...builtInTools, ...tools].find(t => t.name === toolCall?.function?.name && t.active);
+
+                                if (toolMatch && toolMatch.name === 'built_in_generate_image') {
+                                    const prompt = parsedArguments?.prompt;
+
+                                    if (prompt) {
+                                        currentChat.addMessage(OpenAiMessageRoles.tool, 'Image generation commenced', QuokkaMessageTypes.toolCall, null, null, null, null, { toolCallId });
+                                        currentChat.addMessage(OpenAiMessageRoles.system, `Generating image based on prompt: ${prompt}`, QuokkaMessageTypes.chat);
+
+                                        setTimeout(() => {
+                                            mainInput.value = prompt;
+                                            generateImage();
+                                        });
+                                    } else {
+                                        currentChat.addMessage(OpenAiMessageRoles.tool, 'No prompt provided for image generation', QuokkaMessageTypes.toolCall, null, null, null, null, { toolCallId });
+                                    }
+                                    return;
+                                }
+
+                                if (toolMatch && toolMatch.name === 'built_in_get_date_time') {
+                                    setTimeout(() => {
+                                        const now = new Date().toLocaleString();
+                                        currentChat.addMessage(OpenAiMessageRoles.tool, now, QuokkaMessageTypes.toolCall, null, null, null, null, { toolCallId });
+                                        sendChat(true);
+                                    });
+                                    return;
+                                }
+
+                                if (toolMatch && toolMatch.name === 'built_in_integrate_tool') {
+                                    const toolName = parsedArguments?.toolName;
+                                    const toolDescription = parsedArguments?.toolDescription;
+                                    const toolUrl = parsedArguments?.toolUrl;
+                                    const parametersSchema = parsedArguments?.parametersSchema;
+
+                                    setTimeout(() => {
+                                        if (toolName && toolDescription && toolUrl) {
+                                            const newTool = new QuokkaTool(toolName, toolDescription, toolUrl, parametersSchema, false);
+                                            tools.push(newTool);
+                                            saveCurrentTools();
+                                            currentChat.addMessage(OpenAiMessageRoles.tool, `Tool ${toolName} integrated successfully`, QuokkaMessageTypes.toolCall, null, null, null, null, { toolCallId });
+                                        } else {
+                                            currentChat.addMessage(OpenAiMessageRoles.tool, 'Failed to integrate tool, missing required parameters', QuokkaMessageTypes.toolCall, null, null, null, null, { toolCallId });
+                                        }
+                                        sendChat(true);
+                                    });
+                                    return;
+                                }
+
+                                if (toolMatch && toolMatch.url) {
+                                    // TODO: consider using tagged template literals if possible
+                                    let finalUrl = toolMatch.url;
+                                    if (parsedArguments) {
+                                        for (const [key, value] of Object.entries(parsedArguments)) {
+                                            finalUrl = finalUrl.replace(`{${key}}`, value, 'g');
+                                        }
+                                    }
+                                    fetch(finalUrl)
+                                        .then(response => response.json())
+                                        .then(data => {
+                                            const result = JSON.stringify(data);
+                                            currentChat.addMessage(OpenAiMessageRoles.tool, result, QuokkaMessageTypes.toolCall, null, null, null, null, { toolCallId });
+                                            sendChat(true);
+                                        });
+                                    return;
+                                }
+
+                                currentChat.addMessage(OpenAiMessageRoles.tool, 'Requested tool not found.', QuokkaMessageTypes.toolCall, null, null, null, null, { toolCallId });
+                                sendChat(true);
+                            }
+                        });
                     });
                     mainInput.value = '';
                 })
@@ -1119,7 +1376,7 @@
             const rolesAvailable = [OpenAiMessageRoles.user, OpenAiMessageRoles.assistant, OpenAiMessageRoles.system];
             const currentRoleIndex = rolesAvailable.indexOf(nextMessageRole);
             nextMessageRole = nextRoleOverride || rolesAvailable[(currentRoleIndex + 1) % rolesAvailable.length];
-            
+
             const messageRoleSwitcher = document.getElementById('messageRoleSwitcher');
             messageRoleSwitcher.innerText = nextMessageRole[0].toUpperCase();
             messageRoleSwitcher.title = `Next mesage will be under role '${nextMessageRole}'`;
@@ -1155,6 +1412,151 @@
             users?.forEach(u => {
                 userSelect.innerHTML += `<option value="${u.name}">${u.name}</option>`;
             });
+        }
+
+        function addTool() {
+            renderTool();
+        }
+
+        function renderTool(existingTool, isBuiltIn = false) {
+            const activeCb = document.createElement('input');
+            activeCb.type = 'checkbox';
+            activeCb.title = 'Active/Inactive tool, when inactive, it reduces amount of tokens sent = cost of the chat';
+            activeCb.checked = existingTool?.active;
+
+            const nameInput = document.createElement('input');
+            nameInput.type = 'text';
+            nameInput.placeholder = 'Tool name (unique)';
+            nameInput.value = existingTool?.name ?? '';
+
+            const urlInput = document.createElement('input');
+            urlInput.type = 'text';
+            urlInput.placeholder = 'Tool URL';
+            urlInput.value = existingTool?.url ?? '';
+
+            const descriptionInput = document.createElement('textarea');
+            descriptionInput.placeholder = 'Tool description';
+            descriptionInput.rows = 3;
+            descriptionInput.value = existingTool?.description ?? '';
+
+            const paramsInput = document.createElement('textarea');
+            paramsInput.placeholder = 'Tool parameters (JSON schema)';
+            paramsInput.rows = 3;
+            paramsInput.value = existingTool?.parametersSchema ? JSON.stringify(existingTool.parametersSchema) : null;
+
+            if (isBuiltIn) {
+                nameInput.disabled = true;
+                urlInput.disabled = true;
+            }
+
+            const saveButton = document.createElement('button');
+            saveButton.innerText = 'Save';
+
+            const cancelButton = document.createElement('button');
+            cancelButton.innerText = 'Cancel';
+
+            const deleteButton = document.createElement('button');
+            deleteButton.innerText = 'Delete';
+
+            const toolDiv = document.createElement('div');
+            toolDiv.append(activeCb, nameInput, urlInput, descriptionInput, paramsInput, saveButton, cancelButton);
+            if (!isBuiltIn) {
+                toolDiv.append(deleteButton);
+            }
+            toolsListContainer.append(toolDiv);
+
+            saveButton.onclick = () => {
+                const name = nameInput.value;
+                const url = urlInput.value;
+                const description = descriptionInput.value;
+                let params;
+                try {
+                    params = paramsInput.value ? JSON.parse(paramsInput.value) : null;
+                } catch (error) {
+                    alert('Invalid JSON in parameters');
+                    return;
+                }
+                const active = activeCb.checked;
+
+                if (!name || (!url && !isBuiltIn)) {
+                    alert('Name and URL are required');
+                    return;
+                }
+
+                const duplicateNameTool = [...builtInTools, ...tools].find(t => t.name === name && t !== existingTool);
+                if (duplicateNameTool) {
+                    alert('Tool with this name already exists');
+                    return;
+                }
+
+                if (existingTool) {
+                    // update existing tool
+                    existingTool.name = name;
+                    existingTool.url = url;
+                    existingTool.description = description;
+                    existingTool.parametersSchema = params;
+                    existingTool.active = active;
+
+                    saveCurrentTools();
+
+                    toolDiv.remove();
+                    renderTools();
+                    return;
+                }
+
+                tools.push(new QuokkaTool(name, description, url, params, active));
+                saveCurrentTools();
+
+                toolDiv.remove();
+                renderTools();
+            };
+
+            cancelButton.onclick = () => {
+                if (!existingTool) {
+                    toolDiv.remove();
+                }
+            };
+
+            deleteButton.onclick = () => {
+                if (!confirm('Are you sure you want to delete this tool?')) {
+                    return;
+                }
+
+                const index = tools.indexOf(existingTool);
+                if (index > -1) {
+                    tools.splice(index, 1);
+                    saveCurrentTools();
+                    renderTools();
+                }
+            };
+        }
+
+        function renderTools() {
+            toolsListContainer.innerHTML = '';
+
+            builtInTools?.forEach(t => {
+                renderTool(t, true);
+            });
+
+            tools?.forEach(t => {
+                renderTool(t);
+            });
+        }
+
+        function saveCurrentTools() {
+            const t = db.transaction('tools', 'readwrite');
+            const store = t.objectStore('tools');
+
+            const clearQuery = store.clear();
+            clearQuery.onsuccess = () => {
+                tools.forEach(t => {
+                    store.put(t);
+                });
+            };
+            clearQuery.onerror = (e) => {
+                console.error('Failed to clear tools from IndexedDB', e);
+                alert('Failed to clear tools from IndexedDB, see console');
+            };
         }
 
         function renderChatsHistory() {
@@ -1214,7 +1616,7 @@
             currentChat = new QuokkaChat( // TODO: move to separate storage class
                 chatHistoryItem.id,
                 chatHistoryItem._name, // starting from schema v3, name is stored as pseudo-private _name
-                chatHistoryItem.conversationHistory?.map(m => new QuokkaMessage(m.role, m.content, m.type, m.model, m.tokenUsage, m.finishReason, m.imageOptions, m.timeStamp))
+                chatHistoryItem.conversationHistory?.map(m => new QuokkaMessage(m.role, m.content, m.type, m.model, m.tokenUsage, m.finishReason, m.imageOptions, m.timeStamp, m.toolCallOptions))
             );
             chatRenderer.selectChat(currentChat);
         }
@@ -1380,6 +1782,7 @@
         }
 
         function toggleSidebar() {
+            renderTools();
             renderChatsHistory();
             renderStorageStats();
             document.querySelector(".sidebar").classList.toggle("open");
