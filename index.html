@@ -332,7 +332,6 @@
             width: 100%;
         }
 
-
         /* Chat history styles */
         #chatsHistory p {
             margin: 0.4em;
@@ -1485,7 +1484,7 @@
                 }
 
                 // todo check for unique name of the tool
-                const duplicateNameTool = tools.find(t => t.name === name && t !== existingTool);
+                const duplicateNameTool = [...builtInTools, ...tools].find(t => t.name === name && t !== existingTool);
                 if (duplicateNameTool) {
                     alert('Tool with this name already exists');
                     return;
