@@ -472,7 +472,8 @@
             <select id="userSelect" name="userSelect" onchange="setCurrentUser();">
             </select>
             <button class="emoji" onclick="addUser();">✨ Add user</button>
-            <button class="emoji" onclick="clearUsers()">🗑️ Clear users</button>
+            <button class="emoji" onclick="deleteUser()">🚫 Delete</button>
+            <button class="emoji" onclick="clearUsers()">🗑️ Clear all</button>
         </div>
         <h1>
             Parameters
@@ -592,7 +593,7 @@
                 <input type="checkbox" id="overwriteChatsCb" name="overwriteChatsCb" />
             </span>
         </div>
-        <div class="version">v0.1.3</div>
+        <div class="version">v0.1.4</div>
     </div>
     <h2 id="loading" style="visibility: hidden;">Loading...</h2>
 
@@ -1049,7 +1050,7 @@
 
             updateUsers();
 
-            const conn = indexedDB.open('quokkaDb', 4);
+            const conn = indexedDB.open('quokkaDb', 5);
 
             conn.onupgradeneeded = (e) => {
                 db = conn.result;
@@ -1093,6 +1094,13 @@
                     // add tools to the schema
                     db.createObjectStore('tools', { keyPath: 'name' });
                     console.log('IndexedDB schema v4 applied');
+                }
+
+                if (oldVersion < 5) { // v4 -> v5
+                    // this is fake version to remove invalid users
+                    users = users.filter(u => u.name && u.openAIToken);
+                    updateUsers();
+                    console.log('IndexedDB schema v5 applied');
                 }
             };
 
@@ -1383,15 +1391,33 @@
         }
 
         function addUser() {
-            const name = prompt('Name?');
-            const openAIToken = prompt('OpenAI token?');
+            const name = prompt('Name?') || '(no name)';
+            const openAIToken = prompt('OpenAI token?') || '(no token)';
 
             users = [...users, { name: name, openAIToken: openAIToken }];
             updateUsers();
         }
 
         function clearUsers() {
+            if (!confirm('Are you sure you want to clear all users?')) {
+                return;
+            }
+
             users = [];
+            updateUsers();
+        }
+
+        function deleteUser() {
+            if (!currentUser) {
+                alert('No user selected');
+                return;
+            }
+
+            if (!confirm(`Are you sure you want to delete user ${currentUser?.name}?`)) {
+                return;
+            }
+
+            users = users.filter(u => u !== currentUser);
             updateUsers();
         }
 
