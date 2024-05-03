@@ -961,7 +961,7 @@
                 this.active = active;
             }
 
-            toOpenAIModel() {
+            toOpenAIModel(toolCompatMode) {
                 const result = {
                     type: 'function',
                     function: {
@@ -972,6 +972,28 @@
 
                 if (this.parametersSchema) {
                     result.function.parameters = this.parametersSchema;
+
+                    // TODO: remove this compatibility for LocalAI
+                    if (toolCompatMode) {
+                        // scan only one level of properties for now
+                        Object.entries(result.function.parameters.properties).forEach(([key, value]) => {
+                            if (value.type === 'object' && !value.properties) {
+                                value.type = 'string';
+                            }
+                        });
+                    }
+
+                } else if (toolCompatMode) { // compatibility mode for LocalAI
+                    result.function.parameters = {
+                        "type": "object",
+                        "properties": {
+                            "i": {
+                                "type": "number",
+                                "description": "i"
+                            }
+                        },
+                        "required": []
+                    };
                 }
 
                 return result;
@@ -1215,7 +1237,9 @@
                 seed: +seedInput?.value || null
             };
 
-            const availableTools = [...builtInTools, ...tools].filter(t => t.active).map(t => t.toOpenAIModel());
+            // TODO: remove this when LocalAI is fully compatible with OpenAI
+            const toolCompatMode = model?.group?.groupName === 'LocalAI';
+            const availableTools = [...builtInTools, ...tools].filter(t => t.active).map(t => t.toOpenAIModel(toolCompatMode));
             if (availableTools.length > 0) {
                 requestData.tools = availableTools;
             }
