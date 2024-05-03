@@ -488,11 +488,6 @@
             <div>
                 <label for="chatModelSelect">Chat Model</label>
                 <select id="chatModelSelect" name="chatModelSelect">
-                    <option value="gpt-4-turbo-preview">gpt-4-turbo-preview</option>
-                    <option value="gpt-4">gpt-4</option>
-                    <option value="gpt-3.5-turbo">gpt-3.5-turbo</option>
-                    <option value="gpt-4-vision-preview">gpt-4-vision-preview</option>
-                    <option value="gpt-4-32k">gpt-4-32k</option>
                 </select>
             </div>
             <div>
@@ -541,8 +536,6 @@
             <div>
                 <label for="imageModelSelect">Image Model</label>
                 <select id="imageModelSelect" name="imageModelSelect">
-                    <option value="dall-e-3">dall-e-3</option>
-                    <option value="dall-e-2">dall-e-2</option>
                 </select>
             </div>
             <div>
@@ -621,6 +614,7 @@
         let chatNameInput = null;
         let tokensLimitInput = null;
         let chatModelSelect = null;
+        let imageModelSelect = null;
         let temperatureInput = null;
         let topPInput = null;
         let frequencyPenaltyInput = null;
@@ -967,7 +961,7 @@
                 this.active = active;
             }
 
-            toOpenAIModel() {
+            toOpenAIModel(toolCompatMode) {
                 const result = {
                     type: 'function',
                     function: {
@@ -978,10 +972,77 @@
 
                 if (this.parametersSchema) {
                     result.function.parameters = this.parametersSchema;
+
+                    // TODO: remove this compatibility for LocalAI
+                    if (toolCompatMode) {
+                        // scan only one level of properties for now
+                        Object.entries(result.function.parameters.properties).forEach(([key, value]) => {
+                            if (value.type === 'object' && !value.properties) {
+                                value.type = 'string';
+                            }
+                        });
+                    }
+
+                } else if (toolCompatMode) { // compatibility mode for LocalAI
+                    result.function.parameters = {
+                        "type": "object",
+                        "properties": {
+                            "i": {
+                                "type": "number",
+                                "description": "i"
+                            }
+                        },
+                        "required": []
+                    };
                 }
 
                 return result;
             }
+        }
+
+        const chatModelList = [
+            {
+                groupName: 'OpenAI',
+                models: ['gpt-4-turbo-preview', 'gpt-4', 'gpt-3.5-turbo', 'gpt-4-vision-preview', 'gpt-4-32k'],
+                baseUrl: 'https://api.openai.com/v1/chat/completions',
+            },
+            {
+                groupName: 'LocalAI',
+                models: ['gpt-4', 'gpt-4-vision-preview'],
+                baseUrl: 'http://localhost:8080/v1/chat/completions',
+            }
+        ];
+
+        const imageModelList = [
+            {
+                groupName: 'OpenAI',
+                models: ['dall-e-3', 'dall-e-2'],
+                baseUrl: 'https://api.openai.com/v1/images/generations',
+            },
+            {
+                groupName: 'LocalAI',
+                models: ['stablediffusion'],
+                baseUrl: 'http://localhost:8080/v1/images/generations',
+            }
+        ];
+
+        const modelSearchIndex = {};
+
+        function fillModelSelect(selectElement, modelGroups) {
+            modelGroups.forEach(group => {
+                const optGroup = document.createElement('optgroup');
+                optGroup.label = group.groupName;
+                selectElement.add(optGroup);
+
+                group.models.forEach(model => {
+                    const option = document.createElement('option');
+                    option.value = `${group.groupName}/${model}`;
+                    option.text = model;
+                    selectElement.add(option);
+
+                    modelSearchIndex[`${group.groupName}/${model}`] = { group, model };
+                });
+            });
         }
 
         function init() {
@@ -993,6 +1054,7 @@
             chatNameInput = document.getElementById('chatNameInput');
             tokensLimitInput = document.getElementById('tokensLimitInput');
             chatModelSelect = document.getElementById('chatModelSelect');
+            imageModelSelect = document.getElementById('imageModelSelect');
             temperatureInput = document.getElementById('temperatureInput');
             topPInput = document.getElementById('topPInput');
             frequencyPenaltyInput = document.getElementById('frequencyPenaltyInput');
@@ -1000,6 +1062,10 @@
             seedInput = document.getElementById('seedInput');
             versionElement = document.querySelector('.version');
             toolsListContainer = document.getElementById('toolsList');
+
+
+            fillModelSelect(chatModelSelect, chatModelList);
+            fillModelSelect(imageModelSelect, imageModelList);
 
             currentChat = new QuokkaChat();
             chatRenderer = new QuokkaChatRenderer(document.getElementById('answer'));
@@ -1156,9 +1222,10 @@
                 return;
             }
 
-            const apiUrl = 'https://api.openai.com/v1/chat/completions';
+            const model = modelSearchIndex[chatModelSelect.value];
+            const apiUrl = model?.group?.baseUrl || 'https://api.openai.com/v1/chat/completions';
             const requestData = {
-                model: chatModelSelect.value,
+                model: model?.model,
                 messages: currentChat.conversationHistory
                     .filter(m => m.type !== QuokkaMessageTypes.image)
                     .map(m => m.toOpenAIModel()),
@@ -1170,7 +1237,9 @@
                 seed: +seedInput?.value || null
             };
 
-            const availableTools = [...builtInTools, ...tools].filter(t => t.active).map(t => t.toOpenAIModel());
+            // TODO: remove this when LocalAI is fully compatible with OpenAI
+            const toolCompatMode = model?.group?.groupName === 'LocalAI';
+            const availableTools = [...builtInTools, ...tools].filter(t => t.active).map(t => t.toOpenAIModel(toolCompatMode));
             if (availableTools.length > 0) {
                 requestData.tools = availableTools;
             }
@@ -1295,7 +1364,6 @@
                 return;
             }
 
-            const imageModelSelect = document.getElementById('imageModelSelect');
             const imageSizeSelect = document.getElementById('imageSizeSelect');
             const imageDisableRevisedPromptCb = document.getElementById('imageDisableRevisedPromptCb');
 
@@ -1307,8 +1375,9 @@
 
             currentChat.addMessage('user', prompt, QuokkaMessageTypes.image);
 
-            const apiUrl = 'https://api.openai.com/v1/images/generations';
-            const imageModel = imageModelSelect.value;
+            const model = modelSearchIndex[imageModelSelect.value];
+            const apiUrl = model?.group?.baseUrl || 'https://api.openai.com/v1/images/generations';
+            const imageModel = model?.model;
             const imageSize = imageSizeSelect.value;
             const requestData = {
                 model: imageModel,
@@ -1317,6 +1386,12 @@
                 size: imageSize,
                 response_format: 'b64_json' // we have to use this format since fetch by URL is blocked by CORS when read by javascript
             };
+
+            // TODO: remove hack for LocalAI
+            if (imageModel === 'stablediffusion') {
+                delete requestData.n;
+                delete requestData.response_format;
+            }
 
             if (imageQualityHdCb.checked) {
                 requestData.quality = 'hd';
@@ -1342,12 +1417,19 @@
                     console.log(response);
 
                     response?.data?.forEach(img => {
-                        const blob = convertBase64ToBlob(img.b64_json, 'image/png');
+                        if (img.b64_json) {
+                            const blob = convertBase64ToBlob(img.b64_json, 'image/png');
 
-                        currentChat.addMessage('assistant', blob, QuokkaMessageTypes.image, imageModel, null, null, {
-                            size: imageSize,
-                            quality: requestData.quality
-                        });
+                            currentChat.addMessage('assistant', blob, QuokkaMessageTypes.image, imageModel, null, null, {
+                                size: imageSize,
+                                quality: requestData.quality
+                            });
+                        }
+
+                        if (img.url) {
+                            currentChat.addMessage('assistant', `Image URL: <a href="${img.url}" target="_blank"><img src="${img.url}" /><br />${img.url}</a>`, QuokkaMessageTypes.image);
+                        }
+
                         if (img.revised_prompt) {
                             currentChat.addMessage('assistant', `Revised prompt: <em>${img.revised_prompt}</em>`, QuokkaMessageTypes.image);
                         }
