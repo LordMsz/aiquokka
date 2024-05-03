@@ -64,6 +64,7 @@ Edit index.html, refresh, enjoy.
   - Exposed Revised prompt (the re-written form of your prompt) for Dalle-3
   - Images easy to share with simple right click on desktop or tap-and-hold on mobile (it's simple HTML after all!)
   - Generate images right inside your standard text chat (note: the chat context is not used for image creation)
+  - Use LocalAI with Stable Diffusion model to generate images locally https://github.com/mudler/LocalAI
 - All communication exposed
   - Use browser's Developer tools to see all network traffic with OpenAI API, explore how it works, make your own!
   - Debug the code directly to dive into how context is kept or how images are received
@@ -74,6 +75,7 @@ Edit index.html, refresh, enjoy.
   - (experimental) Has built-in function to auto-integrate any API using only chat with assistant (see notes below)
   - Tools can be de/activated to save token counts; all saved in IndexedDB locally
   - All tools are shared across all chats at the moment (an improvement for later?)
+  - (experimental) Has basic compatibility with Local AI https://github.com/mudler/LocalAI (minor differences to OpenAI API)
 - Use OpenAI API key
   - Pay as you go, only for what you really use, only the tokens you truly utilized
   - You have an option to add credits to your account balance up front, and hard-stop when depleting it all (this is OpenAI API feature)
