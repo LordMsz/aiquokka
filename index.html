@@ -1363,6 +1363,12 @@
                 response_format: 'b64_json' // we have to use this format since fetch by URL is blocked by CORS when read by javascript
             };
 
+            // TODO: remove hack for LocalAI
+            if (imageModel === 'stablediffusion') {
+                delete requestData.n;
+                delete requestData.response_format;
+            }
+
             if (imageQualityHdCb.checked) {
                 requestData.quality = 'hd';
             }
