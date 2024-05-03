@@ -1393,12 +1393,19 @@
                     console.log(response);
 
                     response?.data?.forEach(img => {
-                        const blob = convertBase64ToBlob(img.b64_json, 'image/png');
+                        if (img.b64_json) {
+                            const blob = convertBase64ToBlob(img.b64_json, 'image/png');
 
-                        currentChat.addMessage('assistant', blob, QuokkaMessageTypes.image, imageModel, null, null, {
-                            size: imageSize,
-                            quality: requestData.quality
-                        });
+                            currentChat.addMessage('assistant', blob, QuokkaMessageTypes.image, imageModel, null, null, {
+                                size: imageSize,
+                                quality: requestData.quality
+                            });
+                        }
+
+                        if (img.url) {
+                            currentChat.addMessage('assistant', `Image URL: <a href="${img.url}" target="_blank"><img src="${img.url}" /><br />${img.url}</a>`, QuokkaMessageTypes.image);
+                        }
+
                         if (img.revised_prompt) {
                             currentChat.addMessage('assistant', `Revised prompt: <em>${img.revised_prompt}</em>`, QuokkaMessageTypes.image);
                         }
