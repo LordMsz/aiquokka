@@ -731,6 +731,7 @@
         class QuokkaCostEstimator {
             // prices below are USD per million tokens
             static #priceListCompletions = [
+				{ model: /^gpt-4o-[0-9-]*$/, priceIn: 5, priceOut: 15 },
                 { model: /^gpt-4-*[0-9]*-preview$/, priceIn: 10, priceOut: 30 },
                 { model: /^gpt-4-*[0-9]*$/, priceIn: 30, priceOut: 60 },
                 { model: /^gpt-3.5-turbo-*[0-9]*$/, priceIn: 0.5, priceOut: 1.5 },
