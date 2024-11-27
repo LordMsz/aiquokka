@@ -1235,7 +1235,7 @@
                     .filter(m => m.type !== QuokkaMessageTypes.image)
                     .map(m => m.toOpenAIModel()),
                 temperature: +temperatureInput?.value || 1,
-                max_tokens: +tokensLimitInput?.value || 1024,
+                max_completion_tokens: +tokensLimitInput?.value || 1024,
                 top_p: +topPInput?.value || 1,
                 frequency_penalty: +frequencyPenaltyInput?.value || 0,
                 presence_penalty: +presencePenaltyInput?.value || 0,
