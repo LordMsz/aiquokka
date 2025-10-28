@@ -544,6 +544,8 @@
                     <option value="1024x1024">1024x1024</option>
                     <option value="1024x1792">1024x1792 (Dall-e 3)</option>
                     <option value="1792x1024">1792x1024 (Dall-e 3)</option>
+                    <option value="1024x1536">1024x1536 (gpt-image-1)</option>
+                    <option value="1536x1024">1536x1024 (gpt-image-1)</option>
                     <option value="512x512">512x512 (Dall-e 2)</option>
                     <option value="256x256">256x256 (Dall-e 2)</option>
                 </select>
@@ -744,7 +746,16 @@
                 { model: /^o1$/, priceIn: 15, priceOut: 60 },
                 { model: /^o1-[0-9-]*$/, priceIn: 15, priceOut: 60 },
                 { model: /^o3-mini$/, priceIn: 1.10, priceOut: 4.40 },
-                { model: /^o3-mini-[0-9-]*$/, priceIn: 1.10, priceOut: 4.40 }
+                { model: /^o3-mini-[0-9-]*$/, priceIn: 1.10, priceOut: 4.40 },
+                { model: /^gpt-5$/, priceIn: 1.25, priceOut: 10.00 },
+                { model: /^gpt-5-mini$/, priceIn: 0.25, priceOut: 2.00 },
+                { model: /^gpt-5-nano$/, priceIn: 0.05, priceOut: 0.40 },
+                { model: /^gpt-5-pro$/, priceIn: 15.00, priceOut: 120.00 },
+                { model: /^gpt-4\.1$/, priceIn: 2.00, priceOut: 8.00 },
+                { model: /^o3-deep-research$/, priceIn: 10.00, priceOut: 40.00 },
+                { model: /^o4-mini-deep-research$/, priceIn: 2.00, priceOut: 8.00 },
+                { model: /^o4-mini$/, priceIn: 1.10, priceOut: 4.40 },
+                { model: /^gpt-5-codex$/, priceIn: 1.25, priceOut: 10.00 }
             ];
 
             // prices below are USD per image
@@ -757,7 +768,25 @@
                 { model: 'dall-e-3', quality: 'hd', size: '1792x1024', price: 0.120 },
                 { model: 'dall-e-2', quality: 'standard', size: '1024x1024', price: 0.020 },
                 { model: 'dall-e-2', quality: 'standard', size: '512x512', price: 0.018 },
-                { model: 'dall-e-2', quality: 'standard', size: '256x256', price: 0.016 }
+                { model: 'dall-e-2', quality: 'standard', size: '256x256', price: 0.016 },
+                { model: 'gpt-image-1', quality: 'low', size: '1024x1024', price: 0.011 },
+                { model: 'gpt-image-1', quality: 'low', size: '1024x1536', price: 0.016 },
+                { model: 'gpt-image-1', quality: 'low', size: '1536x1024', price: 0.016 },
+                { model: 'gpt-image-1', quality: 'medium', size: '1024x1024', price: 0.042 },
+                { model: 'gpt-image-1', quality: 'medium', size: '1024x1536', price: 0.063 },
+                { model: 'gpt-image-1', quality: 'medium', size: '1536x1024', price: 0.063 },
+                { model: 'gpt-image-1', quality: 'high', size: '1024x1024', price: 0.167 },
+                { model: 'gpt-image-1', quality: 'high', size: '1024x1536', price: 0.25 },
+                { model: 'gpt-image-1', quality: 'high', size: '1536x1024', price: 0.25 },
+                { model: 'gpt-image-1-mini', quality: 'low', size: '1024x1024', price: 0.005 },
+                { model: 'gpt-image-1-mini', quality: 'low', size: '1024x1536', price: 0.006 },
+                { model: 'gpt-image-1-mini', quality: 'low', size: '1536x1024', price: 0.006 },
+                { model: 'gpt-image-1-mini', quality: 'medium', size: '1024x1024', price: 0.011 },
+                { model: 'gpt-image-1-mini', quality: 'medium', size: '1024x1536', price: 0.015 },
+                { model: 'gpt-image-1-mini', quality: 'medium', size: '1536x1024', price: 0.015 },
+                { model: 'gpt-image-1-mini', quality: 'high', size: '1024x1024', price: 0.036 },
+                { model: 'gpt-image-1-mini', quality: 'high', size: '1024x1536', price: 0.052 },
+                { model: 'gpt-image-1-mini', quality: 'high', size: '1536x1024', price: 0.052 }
             ];
 
             static estimateCost(message) {
@@ -1012,7 +1041,7 @@
         const chatModelList = [
             {
                 groupName: 'OpenAI',
-                models: [ 'gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo-preview', 'gpt-4', 'gpt-3.5-turbo', 'gpt-4-vision-preview', 'gpt-4-32k', 'o1-preview', 'o1-mini', 'o1', 'o3-mini'],
+                models: [ 'gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo-preview', 'gpt-4', 'gpt-3.5-turbo', 'gpt-4-vision-preview', 'gpt-4-32k', 'o1-preview', 'o1-mini', 'o1', 'o3-mini', 'gpt-5', 'gpt-5-mini', 'gpt-5-nano', 'gpt-5-pro', 'gpt-4.1', 'o3-deep-research', 'o4-mini-deep-research', 'o4-mini', 'gpt-5-codex'],
                 baseUrl: 'https://api.openai.com/v1/chat/completions',
             },
             {
@@ -1025,7 +1054,7 @@
         const imageModelList = [
             {
                 groupName: 'OpenAI',
-                models: ['dall-e-3', 'dall-e-2'],
+                models: ['dall-e-3', 'dall-e-2', 'gpt-image-1', 'gpt-image-1-mini'],
                 baseUrl: 'https://api.openai.com/v1/images/generations',
             },
             {
