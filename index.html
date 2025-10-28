@@ -541,6 +541,7 @@
             <div>
                 <label for="imageSizeSelect">Image Size</label>
                 <select id="imageSizeSelect" name="imageSizeSelect">
+                    <option value="auto">Auto (gpt-image-1)</option>
                     <option value="1024x1024">1024x1024</option>
                     <option value="1024x1792">1024x1792 (Dall-e 3)</option>
                     <option value="1792x1024">1792x1024 (Dall-e 3)</option>
@@ -554,10 +555,16 @@
                 <label for="imageDisableRevisedPromptCb">Disable revised prompt (Dall-e 3)</label>
                 <input type="checkbox" id="imageDisableRevisedPromptCb" name="imageDisableRevisedPromptCb" />
             </div>
-            <div
-                title="If checked, creates images with finer details and greater consistency across the image; but for double/higher price https://openai.com/pricing">
-                <label for="imageQualityHdCb">HD quality (Dall-e 3)</label>
-                <input type="checkbox" id="imageQualityHdCb" name="imageQualityHdCb" />
+            <div>
+                <label for="imageQualitySelect">Quality</label>
+                <select id="imageQualitySelect" name="imageQualitySelect">
+                    <option value="">Auto (default)</option>
+                    <option value="standard">Standard (Dall-e 2/3)</option>
+                    <option value="hd">HD (Dall-e 3)</option>
+                    <option value="low">Low (gpt-image-1)</option>
+                    <option value="medium">Medium (gpt-image-1)</option>
+                    <option value="high">High (gpt-image-1)</option>
+                </select>
             </div>
             <div>
                 <label for="imageStyleSelect">Style</label>
@@ -566,6 +573,29 @@
                     <option value="">None (Dall-e 2)</option>
                     <option value="natural">Natural (Dall-e 3)</option>
                 </select>
+            </div>
+            <div>
+                <label for="imageOutputFormatSelect">Output Format (gpt-image-1)</label>
+                <select id="imageOutputFormatSelect" name="imageOutputFormatSelect">
+                    <option value="">Default (png)</option>
+                    <option value="png">PNG</option>
+                    <option value="jpeg">JPEG</option>
+                    <option value="webp">WebP</option>
+                </select>
+            </div>
+            <div>
+                <label for="imageBackgroundSelect">Background (gpt-image-1)</label>
+                <select id="imageBackgroundSelect" name="imageBackgroundSelect">
+                    <option value="">Auto (default)</option>
+                    <option value="auto">Auto</option>
+                    <option value="transparent">Transparent</option>
+                    <option value="opaque">Opaque</option>
+                </select>
+            </div>
+            <div>
+                <label for="imageCompressionInput">Compression (0-100%, gpt-image-1):</label>
+                <input type="number" id="imageCompressionValue" value="100" min="0" max="100" />
+                <input type="range" id="imageCompressionInput" min="0" max="100" step="1" value="100" />
             </div>
         </div>
         <h2 title="Tools available in all chats">Global tools</h2>
@@ -1404,6 +1434,11 @@
 
             const imageSizeSelect = document.getElementById('imageSizeSelect');
             const imageDisableRevisedPromptCb = document.getElementById('imageDisableRevisedPromptCb');
+            const imageQualitySelect = document.getElementById('imageQualitySelect');
+            const imageStyleSelect = document.getElementById('imageStyleSelect');
+            const imageOutputFormatSelect = document.getElementById('imageOutputFormatSelect');
+            const imageBackgroundSelect = document.getElementById('imageBackgroundSelect');
+            const imageCompressionInput = document.getElementById('imageCompressionInput');
 
             let prompt = mainInput.value;
             if (imageDisableRevisedPromptCb.checked) {
@@ -1421,22 +1456,56 @@
                 model: imageModel,
                 prompt: prompt,
                 n: 1,
-                size: imageSize,
-                response_format: 'b64_json' // we have to use this format since fetch by URL is blocked by CORS when read by javascript
+                size: imageSize
             };
+
+            // Check if model is gpt-image-1 or gpt-image-1-mini
+            const isGptImage = imageModel && (imageModel.startsWith('gpt-image-1'));
+
+            // For gpt-image-1, don't send response_format as it always returns base64
+            // For other models, use b64_json since fetch by URL is blocked by CORS
+            if (!isGptImage && imageModel !== 'stablediffusion') {
+                requestData.response_format = 'b64_json';
+            }
 
             // TODO: remove hack for LocalAI
             if (imageModel === 'stablediffusion') {
                 delete requestData.n;
-                delete requestData.response_format;
             }
 
-            if (imageQualityHdCb.checked) {
-                requestData.quality = 'hd';
+            // Handle quality parameter based on model
+            const quality = imageQualitySelect.value;
+            if (quality) {
+                requestData.quality = quality;
             }
 
+            // Handle style parameter (only for dall-e-3)
             if (imageStyleSelect.value) {
                 requestData.style = imageStyleSelect.value;
+            }
+
+            // Handle gpt-image-1 specific parameters
+            if (isGptImage) {
+                // Output format
+                const outputFormat = imageOutputFormatSelect.value;
+                if (outputFormat) {
+                    requestData.output_format = outputFormat;
+                }
+
+                // Background
+                const background = imageBackgroundSelect.value;
+                if (background) {
+                    requestData.background = background;
+                }
+
+                // Compression (only for webp/jpeg)
+                const compression = parseInt(imageCompressionInput.value);
+                const format = outputFormat || 'png';
+                if (format === 'webp' || format === 'jpeg') {
+                    if (compression >= 0 && compression <= 100) {
+                        requestData.output_compression = compression;
+                    }
+                }
             }
 
             const headers = {
@@ -1456,7 +1525,11 @@
 
                     response?.data?.forEach(img => {
                         if (img.b64_json) {
-                            const blob = convertBase64ToBlob(img.b64_json, 'image/png');
+                            // Determine the correct MIME type based on output_format
+                            const outputFormat = requestData.output_format || 'png';
+                            const mimeType = outputFormat === 'jpeg' ? 'image/jpeg' : 
+                                           outputFormat === 'webp' ? 'image/webp' : 'image/png';
+                            const blob = convertBase64ToBlob(img.b64_json, mimeType);
 
                             currentChat.addMessage('assistant', blob, QuokkaMessageTypes.image, imageModel, null, null, {
                                 size: imageSize,
@@ -1951,6 +2024,7 @@
             handleRangeSlide(topPInput, 'topPValue');
             handleRangeSlide(frequencyPenaltyInput, 'frequencyPenaltyValue');
             handleRangeSlide(presencePenaltyInput, 'presencePenaltyValue');
+            handleRangeSlide(document.getElementById('imageCompressionInput'), 'imageCompressionValue');
 
             handleSwipe(document.body, (distance) => {
                 // swipe right
