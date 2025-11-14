@@ -777,6 +777,7 @@
                 { model: /^o3-mini$/, priceIn: 1.10, priceOut: 4.40 },
                 { model: /^o3-mini-[0-9-]*$/, priceIn: 1.10, priceOut: 4.40 },
                 { model: /^gpt-5$/, priceIn: 1.25, priceOut: 10.00 },
+                { model: /^gpt-5\.1-[0-9-]*$/, priceIn: 1.25, priceOut: 10.00 },
                 { model: /^gpt-5-mini$/, priceIn: 0.25, priceOut: 2.00 },
                 { model: /^gpt-5-nano$/, priceIn: 0.05, priceOut: 0.40 },
                 { model: /^gpt-5-pro$/, priceIn: 15.00, priceOut: 120.00 },
@@ -1070,7 +1071,7 @@
         const chatModelList = [
             {
                 groupName: 'OpenAI',
-                models: [ 'gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo-preview', 'gpt-4', 'gpt-3.5-turbo', 'gpt-4-vision-preview', 'gpt-4-32k', 'o1-preview', 'o1-mini', 'o1', 'o3-mini', 'gpt-5', 'gpt-5-mini', 'gpt-5-nano', 'gpt-5-pro', 'gpt-4.1', 'o3-deep-research', 'o4-mini-deep-research', 'o4-mini', 'gpt-5-codex'],
+                models: [ 'gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo-preview', 'gpt-4', 'gpt-3.5-turbo', 'gpt-4-vision-preview', 'gpt-4-32k', 'o1-preview', 'o1-mini', 'o1', 'o3-mini', 'gpt-5', 'gpt-5-mini', 'gpt-5-nano', 'gpt-5-pro', 'gpt-5.1-2025-11-13', 'gpt-4.1', 'o3-deep-research', 'o4-mini-deep-research', 'o4-mini', 'gpt-5-codex'],
                 baseUrl: 'https://api.openai.com/v1/chat/completions',
             },
             {
