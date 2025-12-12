@@ -530,6 +530,20 @@
                 <label for="seedInput">Seed (beta):</label>
                 <input type="number" id="seedInput" value="" />
             </div>
+            <div>
+                <label for="reasoningEffortSelect"
+                    title="Controls reasoning effort for GPT-5.2 and compatible models. Higher effort means more thorough reasoning but slower responses.">
+                    Reasoning Effort (GPT-5.2):
+                </label>
+                <select id="reasoningEffortSelect" name="reasoningEffortSelect">
+                    <option value="">Default (auto)</option>
+                    <option value="none">None</option>
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                    <option value="xhigh">X-High</option>
+                </select>
+            </div>
         </div>
         <h2>Image</h2>
         <div class="params">
@@ -651,6 +665,7 @@
         let frequencyPenaltyInput = null;
         let presencePenaltyInput = null;
         let seedInput = null;
+        let reasoningEffortSelect = null;
         let versionElement = null;
         let toolsListContainer = null;
 
@@ -776,6 +791,8 @@
                 { model: /^o1-[0-9-]*$/, priceIn: 15, priceOut: 60 },
                 { model: /^o3-mini$/, priceIn: 1.10, priceOut: 4.40 },
                 { model: /^o3-mini-[0-9-]*$/, priceIn: 1.10, priceOut: 4.40 },
+                { model: /^gpt-5\.2$/, priceIn: 1.75, priceOut: 14.00 },
+                { model: /^gpt-5\.2-[0-9-]*$/, priceIn: 1.75, priceOut: 14.00 },
                 { model: /^gpt-5$/, priceIn: 1.25, priceOut: 10.00 },
                 { model: /^gpt-5\.1-[0-9-]*$/, priceIn: 1.25, priceOut: 10.00 },
                 { model: /^gpt-5-mini$/, priceIn: 0.25, priceOut: 2.00 },
@@ -1071,7 +1088,7 @@
         const chatModelList = [
             {
                 groupName: 'OpenAI',
-                models: [ 'gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo-preview', 'gpt-4', 'gpt-3.5-turbo', 'gpt-4-vision-preview', 'gpt-4-32k', 'o1-preview', 'o1-mini', 'o1', 'o3-mini', 'gpt-5', 'gpt-5-mini', 'gpt-5-nano', 'gpt-5-pro', 'gpt-5.1-2025-11-13', 'gpt-4.1', 'o3-deep-research', 'o4-mini-deep-research', 'o4-mini', 'gpt-5-codex'],
+                models: [ 'gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo-preview', 'gpt-4', 'gpt-3.5-turbo', 'gpt-4-vision-preview', 'gpt-4-32k', 'o1-preview', 'o1-mini', 'o1', 'o3-mini', 'gpt-5.2', 'gpt-5', 'gpt-5-mini', 'gpt-5-nano', 'gpt-5-pro', 'gpt-5.1-2025-11-13', 'gpt-4.1', 'o3-deep-research', 'o4-mini-deep-research', 'o4-mini', 'gpt-5-codex'],
                 baseUrl: 'https://api.openai.com/v1/chat/completions',
             },
             {
@@ -1128,6 +1145,7 @@
             frequencyPenaltyInput = document.getElementById('frequencyPenaltyInput');
             presencePenaltyInput = document.getElementById('presencePenaltyInput');
             seedInput = document.getElementById('seedInput');
+            reasoningEffortSelect = document.getElementById('reasoningEffortSelect');
             versionElement = document.querySelector('.version');
             toolsListContainer = document.getElementById('toolsList');
 
@@ -1304,6 +1322,14 @@
                 presence_penalty: +presencePenaltyInput?.value || 0,
                 seed: +seedInput?.value || null
             };
+
+            // Add reasoning effort parameter for compatible models (GPT-5.2, etc.)
+            const reasoningEffort = reasoningEffortSelect?.value;
+            if (reasoningEffort) {
+                requestData.reasoning = {
+                    effort: reasoningEffort
+                };
+            }
 
             // TODO: remove this when LocalAI is fully compatible with OpenAI
             const toolCompatMode = model?.group?.groupName === 'LocalAI';
