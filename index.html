@@ -530,6 +530,20 @@
                 <label for="seedInput">Seed (beta):</label>
                 <input type="number" id="seedInput" value="" />
             </div>
+            <div>
+                <label for="reasoningEffortSelect"
+                    title="Controls reasoning effort for GPT-5.2 and compatible models. Higher effort means more thorough reasoning but slower responses.">
+                    Reasoning Effort (GPT-5.2):
+                </label>
+                <select id="reasoningEffortSelect" name="reasoningEffortSelect">
+                    <option value="">Default (auto)</option>
+                    <option value="none">None</option>
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                    <option value="xhigh">X-High</option>
+                </select>
+            </div>
         </div>
         <h2>Image</h2>
         <div class="params">
@@ -651,6 +665,7 @@
         let frequencyPenaltyInput = null;
         let presencePenaltyInput = null;
         let seedInput = null;
+        let reasoningEffortSelect = null;
         let versionElement = null;
         let toolsListContainer = null;
 
@@ -1130,6 +1145,7 @@
             frequencyPenaltyInput = document.getElementById('frequencyPenaltyInput');
             presencePenaltyInput = document.getElementById('presencePenaltyInput');
             seedInput = document.getElementById('seedInput');
+            reasoningEffortSelect = document.getElementById('reasoningEffortSelect');
             versionElement = document.querySelector('.version');
             toolsListContainer = document.getElementById('toolsList');
 
@@ -1306,6 +1322,14 @@
                 presence_penalty: +presencePenaltyInput?.value || 0,
                 seed: +seedInput?.value || null
             };
+
+            // Add reasoning effort parameter for compatible models (GPT-5.2, etc.)
+            const reasoningEffort = reasoningEffortSelect?.value;
+            if (reasoningEffort) {
+                requestData.reasoning = {
+                    effort: reasoningEffort
+                };
+            }
 
             // TODO: remove this when LocalAI is fully compatible with OpenAI
             const toolCompatMode = model?.group?.groupName === 'LocalAI';
