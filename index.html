@@ -1533,7 +1533,7 @@
             }
 
             // Handle style parameter (only for dall-e-3)
-            if (imageStyleSelect.value) {
+            if (imageStyleSelect.value && imageModel === 'dall-e-3') {
                 requestData.style = imageStyleSelect.value;
             }
 
