@@ -555,12 +555,12 @@
             <div>
                 <label for="imageSizeSelect">Image Size</label>
                 <select id="imageSizeSelect" name="imageSizeSelect">
-                    <option value="auto">Auto (gpt-image-1)</option>
+                    <option value="auto">Auto (gpt-image models)</option>
                     <option value="1024x1024">1024x1024</option>
                     <option value="1024x1792">1024x1792 (Dall-e 3)</option>
                     <option value="1792x1024">1792x1024 (Dall-e 3)</option>
-                    <option value="1024x1536">1024x1536 (gpt-image-1)</option>
-                    <option value="1536x1024">1536x1024 (gpt-image-1)</option>
+                    <option value="1024x1536">1024x1536 (gpt-image models)</option>
+                    <option value="1536x1024">1536x1024 (gpt-image models)</option>
                     <option value="512x512">512x512 (Dall-e 2)</option>
                     <option value="256x256">256x256 (Dall-e 2)</option>
                 </select>
@@ -609,6 +609,14 @@
                 <label for="imageCompressionInput">Compression (0-100%, gpt-image-1):</label>
                 <input type="number" id="imageCompressionValue" value="100" min="0" max="100" />
                 <input type="range" id="imageCompressionInput" min="0" max="100" step="1" value="100" />
+            </div>
+            <div>
+                <label for="imageInputFidelitySelect">Input Fidelity (gpt-image models)</label>
+                <select id="imageInputFidelitySelect" name="imageInputFidelitySelect">
+                    <option value="">Default (low)</option>
+                    <option value="low">Low</option>
+                    <option value="high">High</option>
+                </select>
             </div>
         </div>
         <h2 title="Tools available in all chats">Global tools</h2>
@@ -816,6 +824,24 @@
                 { model: 'dall-e-2', quality: 'standard', size: '1024x1024', price: 0.020 },
                 { model: 'dall-e-2', quality: 'standard', size: '512x512', price: 0.018 },
                 { model: 'dall-e-2', quality: 'standard', size: '256x256', price: 0.016 },
+                { model: 'gpt-image-1.5', quality: 'low', size: '1024x1024', price: 0.009 },
+                { model: 'gpt-image-1.5', quality: 'low', size: '1024x1536', price: 0.013 },
+                { model: 'gpt-image-1.5', quality: 'low', size: '1536x1024', price: 0.013 },
+                { model: 'gpt-image-1.5', quality: 'medium', size: '1024x1024', price: 0.034 },
+                { model: 'gpt-image-1.5', quality: 'medium', size: '1024x1536', price: 0.05 },
+                { model: 'gpt-image-1.5', quality: 'medium', size: '1536x1024', price: 0.05 },
+                { model: 'gpt-image-1.5', quality: 'high', size: '1024x1024', price: 0.133 },
+                { model: 'gpt-image-1.5', quality: 'high', size: '1024x1536', price: 0.2 },
+                { model: 'gpt-image-1.5', quality: 'high', size: '1536x1024', price: 0.2 },
+                { model: 'gpt-image-latest', quality: 'low', size: '1024x1024', price: 0.009 },
+                { model: 'gpt-image-latest', quality: 'low', size: '1024x1536', price: 0.013 },
+                { model: 'gpt-image-latest', quality: 'low', size: '1536x1024', price: 0.013 },
+                { model: 'gpt-image-latest', quality: 'medium', size: '1024x1024', price: 0.034 },
+                { model: 'gpt-image-latest', quality: 'medium', size: '1024x1536', price: 0.05 },
+                { model: 'gpt-image-latest', quality: 'medium', size: '1536x1024', price: 0.05 },
+                { model: 'gpt-image-latest', quality: 'high', size: '1024x1024', price: 0.133 },
+                { model: 'gpt-image-latest', quality: 'high', size: '1024x1536', price: 0.2 },
+                { model: 'gpt-image-latest', quality: 'high', size: '1536x1024', price: 0.2 },
                 { model: 'gpt-image-1', quality: 'low', size: '1024x1024', price: 0.011 },
                 { model: 'gpt-image-1', quality: 'low', size: '1024x1536', price: 0.016 },
                 { model: 'gpt-image-1', quality: 'low', size: '1536x1024', price: 0.016 },
@@ -1101,7 +1127,7 @@
         const imageModelList = [
             {
                 groupName: 'OpenAI',
-                models: ['dall-e-3', 'dall-e-2', 'gpt-image-1', 'gpt-image-1-mini'],
+                models: ['gpt-image-1.5', 'gpt-image-latest', 'dall-e-3', 'dall-e-2', 'gpt-image-1', 'gpt-image-1-mini'],
                 baseUrl: 'https://api.openai.com/v1/images/generations',
             },
             {
@@ -1465,6 +1491,7 @@
             const imageOutputFormatSelect = document.getElementById('imageOutputFormatSelect');
             const imageBackgroundSelect = document.getElementById('imageBackgroundSelect');
             const imageCompressionInput = document.getElementById('imageCompressionInput');
+            const imageInputFidelitySelect = document.getElementById('imageInputFidelitySelect');
 
             let prompt = mainInput.value;
             if (imageDisableRevisedPromptCb.checked) {
@@ -1485,8 +1512,8 @@
                 size: imageSize
             };
 
-            // Check if model is gpt-image-1 or gpt-image-1-mini
-            const isGptImage = imageModel && (imageModel.startsWith('gpt-image-1'));
+            // Check if model is any gpt-image variant
+            const isGptImage = imageModel && (imageModel.startsWith('gpt-image'));
 
             // For gpt-image-1, don't send response_format as it always returns base64
             // For other models, use b64_json since fetch by URL is blocked by CORS
@@ -1531,6 +1558,12 @@
                     if (compression >= 0 && compression <= 100) {
                         requestData.output_compression = compression;
                     }
+                }
+
+                // Input fidelity
+                const inputFidelity = imageInputFidelitySelect.value;
+                if (inputFidelity) {
+                    requestData.input_fidelity = inputFidelity;
                 }
             }
 
