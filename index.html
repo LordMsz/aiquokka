@@ -575,9 +575,9 @@
                     <option value="">Auto (default)</option>
                     <option value="standard">Standard (Dall-e 2/3)</option>
                     <option value="hd">HD (Dall-e 3)</option>
-                    <option value="low">Low (gpt-image-1)</option>
-                    <option value="medium">Medium (gpt-image-1)</option>
-                    <option value="high">High (gpt-image-1)</option>
+                    <option value="low">Low (gpt-image models)</option>
+                    <option value="medium">Medium (gpt-image models)</option>
+                    <option value="high">High (gpt-image models)</option>
                 </select>
             </div>
             <div>
@@ -589,7 +589,7 @@
                 </select>
             </div>
             <div>
-                <label for="imageOutputFormatSelect">Output Format (gpt-image-1)</label>
+                <label for="imageOutputFormatSelect">Output Format (gpt-image models)</label>
                 <select id="imageOutputFormatSelect" name="imageOutputFormatSelect">
                     <option value="">Default (png)</option>
                     <option value="png">PNG</option>
@@ -598,7 +598,7 @@
                 </select>
             </div>
             <div>
-                <label for="imageBackgroundSelect">Background (gpt-image-1)</label>
+                <label for="imageBackgroundSelect">Background (gpt-image models)</label>
                 <select id="imageBackgroundSelect" name="imageBackgroundSelect">
                     <option value="">Default (auto)</option>
                     <option value="transparent">Transparent</option>
@@ -606,7 +606,7 @@
                 </select>
             </div>
             <div>
-                <label for="imageCompressionInput">Compression (0-100%, gpt-image-1):</label>
+                <label for="imageCompressionInput">Compression (0-100%, gpt-image models):</label>
                 <input type="number" id="imageCompressionValue" value="100" min="0" max="100" />
                 <input type="range" id="imageCompressionInput" min="0" max="100" step="1" value="100" />
             </div>
@@ -639,7 +639,7 @@
                 <input type="checkbox" id="overwriteChatsCb" name="overwriteChatsCb" />
             </span>
         </div>
-        <div class="version">v0.1.7</div>
+        <div class="version">v0.1.8</div>
     </div>
     <h2 id="loading" style="visibility: hidden;">Loading...</h2>
 
@@ -699,10 +699,12 @@
                 this.finishReason = finishReason;
                 this.timeStamp = timeStamp || null;
 
+                const promptTokens = tokenUsage?.prompt_tokens ?? tokenUsage?.input_tokens;
+                const completionTokens = tokenUsage?.completion_tokens ?? tokenUsage?.output_tokens;
                 this.tokenUsage = tokenUsage ? {
-                    prompt_tokens: tokenUsage.prompt_tokens,
-                    completion_tokens: tokenUsage.completion_tokens,
-                    total_tokens: tokenUsage.total_tokens
+                    prompt_tokens: promptTokens,
+                    completion_tokens: completionTokens,
+                    total_tokens: tokenUsage.total_tokens ?? (promptTokens ?? 0) + (completionTokens ?? 0)
                 } : null;
 
                 this.imageOptions = imageOptions ? {
@@ -799,6 +801,16 @@
                 { model: /^o1-[0-9-]*$/, priceIn: 15, priceOut: 60 },
                 { model: /^o3-mini$/, priceIn: 1.10, priceOut: 4.40 },
                 { model: /^o3-mini-[0-9-]*$/, priceIn: 1.10, priceOut: 4.40 },
+                { model: /^gpt-5\.5$/, priceIn: 5.00, priceOut: 30.00 },
+                { model: /^gpt-5\.5-[0-9-]*$/, priceIn: 5.00, priceOut: 30.00 },
+                { model: /^gpt-5\.5-pro$/, priceIn: 30.00, priceOut: 180.00 },
+                { model: /^gpt-5\.4$/, priceIn: 2.50, priceOut: 15.00 },
+                { model: /^gpt-5\.4-[0-9-]*$/, priceIn: 2.50, priceOut: 15.00 },
+                { model: /^gpt-5\.4-mini$/, priceIn: 0.75, priceOut: 4.50 },
+                { model: /^gpt-5\.4-mini-[0-9-]*$/, priceIn: 0.75, priceOut: 4.50 },
+                { model: /^gpt-5\.4-nano$/, priceIn: 0.20, priceOut: 1.25 },
+                { model: /^gpt-5\.4-nano-[0-9-]*$/, priceIn: 0.20, priceOut: 1.25 },
+                { model: /^gpt-5\.4-pro$/, priceIn: 30.00, priceOut: 180.00 },
                 { model: /^gpt-5\.2$/, priceIn: 1.75, priceOut: 14.00 },
                 { model: /^gpt-5\.2-[0-9-]*$/, priceIn: 1.75, priceOut: 14.00 },
                 { model: /^gpt-5$/, priceIn: 1.25, priceOut: 10.00 },
@@ -810,7 +822,9 @@
                 { model: /^o3-deep-research$/, priceIn: 10.00, priceOut: 40.00 },
                 { model: /^o4-mini-deep-research$/, priceIn: 2.00, priceOut: 8.00 },
                 { model: /^o4-mini$/, priceIn: 1.10, priceOut: 4.40 },
-                { model: /^gpt-5-codex$/, priceIn: 1.25, priceOut: 10.00 }
+                { model: /^gpt-5-codex$/, priceIn: 1.25, priceOut: 10.00 },
+                // gpt-image-2 returns token usage instead of using the fixed per-image table below
+                { model: /^gpt-image-2$/, priceIn: 8.00, priceOut: 30.00 }
             ];
 
             // prices below are USD per image
@@ -833,15 +847,6 @@
                 { model: 'gpt-image-1.5', quality: 'high', size: '1024x1024', price: 0.133 },
                 { model: 'gpt-image-1.5', quality: 'high', size: '1024x1536', price: 0.2 },
                 { model: 'gpt-image-1.5', quality: 'high', size: '1536x1024', price: 0.2 },
-                { model: 'gpt-image-latest', quality: 'low', size: '1024x1024', price: 0.009 },
-                { model: 'gpt-image-latest', quality: 'low', size: '1024x1536', price: 0.013 },
-                { model: 'gpt-image-latest', quality: 'low', size: '1536x1024', price: 0.013 },
-                { model: 'gpt-image-latest', quality: 'medium', size: '1024x1024', price: 0.034 },
-                { model: 'gpt-image-latest', quality: 'medium', size: '1024x1536', price: 0.05 },
-                { model: 'gpt-image-latest', quality: 'medium', size: '1536x1024', price: 0.05 },
-                { model: 'gpt-image-latest', quality: 'high', size: '1024x1024', price: 0.133 },
-                { model: 'gpt-image-latest', quality: 'high', size: '1024x1536', price: 0.2 },
-                { model: 'gpt-image-latest', quality: 'high', size: '1536x1024', price: 0.2 },
                 { model: 'gpt-image-1', quality: 'low', size: '1024x1024', price: 0.011 },
                 { model: 'gpt-image-1', quality: 'low', size: '1024x1536', price: 0.016 },
                 { model: 'gpt-image-1', quality: 'low', size: '1536x1024', price: 0.016 },
@@ -905,9 +910,20 @@
                     return null;
                 }
 
+                if (message.tokenUsage) {
+                    const tokenCost = QuokkaCostEstimator.estimateChatCost(message);
+                    if (tokenCost) {
+                        return tokenCost;
+                    }
+                }
+
                 const model = message.model;
-                const size = message.imageOptions.size;
-                const quality = message.imageOptions.quality ?? 'standard';
+                const isGptImage = model.startsWith('gpt-image');
+                const size = message.imageOptions.size === 'auto' ? '1024x1024' : message.imageOptions.size;
+                let quality = message.imageOptions.quality ?? 'standard';
+                if (isGptImage && quality === 'standard') {
+                    quality = 'medium';
+                }
 
                 const priceModel = QuokkaCostEstimator.#priceListImages.find(p => p.model === model && p.size === size && p.quality === quality);
                 if (!priceModel) {
@@ -1114,7 +1130,7 @@
         const chatModelList = [
             {
                 groupName: 'OpenAI',
-                models: [ 'gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo-preview', 'gpt-4', 'gpt-3.5-turbo', 'gpt-4-vision-preview', 'gpt-4-32k', 'o1-preview', 'o1-mini', 'o1', 'o3-mini', 'gpt-5.2', 'gpt-5', 'gpt-5-mini', 'gpt-5-nano', 'gpt-5-pro', 'gpt-5.1-2025-11-13', 'gpt-4.1', 'o3-deep-research', 'o4-mini-deep-research', 'o4-mini', 'gpt-5-codex'],
+                models: [ 'gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo-preview', 'gpt-4', 'gpt-3.5-turbo', 'gpt-4-vision-preview', 'gpt-4-32k', 'o1-preview', 'o1-mini', 'o1', 'o3-mini', 'gpt-5.5', 'gpt-5.5-pro', 'gpt-5.4', 'gpt-5.4-mini', 'gpt-5.4-nano', 'gpt-5.4-pro', 'gpt-5.2', 'gpt-5', 'gpt-5-mini', 'gpt-5-nano', 'gpt-5-pro', 'gpt-5.1-2025-11-13', 'gpt-4.1', 'o3-deep-research', 'o4-mini-deep-research', 'o4-mini', 'gpt-5-codex'],
                 baseUrl: 'https://api.openai.com/v1/chat/completions',
             },
             {
@@ -1127,7 +1143,7 @@
         const imageModelList = [
             {
                 groupName: 'OpenAI',
-                models: ['gpt-image-1.5', 'gpt-image-latest', 'dall-e-3', 'dall-e-2', 'gpt-image-1', 'gpt-image-1-mini'],
+                models: ['gpt-image-2', 'gpt-image-1.5', 'dall-e-3', 'dall-e-2', 'gpt-image-1', 'gpt-image-1-mini'],
                 baseUrl: 'https://api.openai.com/v1/images/generations',
             },
             {
@@ -1590,7 +1606,7 @@
                                            outputFormat === 'webp' ? 'image/webp' : 'image/png';
                             const blob = convertBase64ToBlob(img.b64_json, mimeType);
 
-                            currentChat.addMessage('assistant', blob, QuokkaMessageTypes.image, imageModel, null, null, {
+                            currentChat.addMessage('assistant', blob, QuokkaMessageTypes.image, imageModel, response?.usage, null, {
                                 size: imageSize,
                                 quality: requestData.quality
                             });
