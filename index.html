@@ -699,10 +699,12 @@
                 this.finishReason = finishReason;
                 this.timeStamp = timeStamp || null;
 
+                const promptTokens = tokenUsage?.prompt_tokens ?? tokenUsage?.input_tokens;
+                const completionTokens = tokenUsage?.completion_tokens ?? tokenUsage?.output_tokens;
                 this.tokenUsage = tokenUsage ? {
-                    prompt_tokens: tokenUsage.prompt_tokens ?? tokenUsage.input_tokens,
-                    completion_tokens: tokenUsage.completion_tokens ?? tokenUsage.output_tokens,
-                    total_tokens: tokenUsage.total_tokens ?? (tokenUsage.prompt_tokens ?? tokenUsage.input_tokens ?? 0) + (tokenUsage.completion_tokens ?? tokenUsage.output_tokens ?? 0)
+                    prompt_tokens: promptTokens,
+                    completion_tokens: completionTokens,
+                    total_tokens: tokenUsage.total_tokens ?? (promptTokens ?? 0) + (completionTokens ?? 0)
                 } : null;
 
                 this.imageOptions = imageOptions ? {
@@ -821,6 +823,7 @@
                 { model: /^o4-mini-deep-research$/, priceIn: 2.00, priceOut: 8.00 },
                 { model: /^o4-mini$/, priceIn: 1.10, priceOut: 4.40 },
                 { model: /^gpt-5-codex$/, priceIn: 1.25, priceOut: 10.00 },
+                // gpt-image-2 returns token usage instead of using the fixed per-image table below
                 { model: /^gpt-image-2$/, priceIn: 8.00, priceOut: 30.00 }
             ];
 
@@ -917,9 +920,10 @@
                 const model = message.model;
                 const isGptImage = model.startsWith('gpt-image');
                 const size = message.imageOptions.size === 'auto' ? '1024x1024' : message.imageOptions.size;
-                const quality = isGptImage
-                    ? (message.imageOptions.quality === 'standard' || !message.imageOptions.quality ? 'medium' : message.imageOptions.quality)
-                    : (message.imageOptions.quality ?? 'standard');
+                let quality = message.imageOptions.quality ?? 'standard';
+                if (isGptImage && quality === 'standard') {
+                    quality = 'medium';
+                }
 
                 const priceModel = QuokkaCostEstimator.#priceListImages.find(p => p.model === model && p.size === size && p.quality === quality);
                 if (!priceModel) {
