@@ -639,7 +639,7 @@
                 <input type="checkbox" id="overwriteChatsCb" name="overwriteChatsCb" />
             </span>
         </div>
-        <div class="version">v0.1.8</div>
+        <div class="version">v0.1.9</div>
     </div>
     <h2 id="loading" style="visibility: hidden;">Loading...</h2>
 
@@ -801,6 +801,9 @@
                 { model: /^o1-[0-9-]*$/, priceIn: 15, priceOut: 60 },
                 { model: /^o3-mini$/, priceIn: 1.10, priceOut: 4.40 },
                 { model: /^o3-mini-[0-9-]*$/, priceIn: 1.10, priceOut: 4.40 },
+                { model: /^gpt-5\.6-sol$/, priceIn: 5.00, priceOut: 30.00 },
+                { model: /^gpt-5\.6-terra$/, priceIn: 2.50, priceOut: 15.00 },
+                { model: /^gpt-5\.6-luna$/, priceIn: 1.00, priceOut: 6.00 },
                 { model: /^gpt-5\.5$/, priceIn: 5.00, priceOut: 30.00 },
                 { model: /^gpt-5\.5-[0-9-]*$/, priceIn: 5.00, priceOut: 30.00 },
                 { model: /^gpt-5\.5-pro$/, priceIn: 30.00, priceOut: 180.00 },
@@ -1130,7 +1133,7 @@
         const chatModelList = [
             {
                 groupName: 'OpenAI',
-                models: [ 'gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo-preview', 'gpt-4', 'gpt-3.5-turbo', 'gpt-4-vision-preview', 'gpt-4-32k', 'o1-preview', 'o1-mini', 'o1', 'o3-mini', 'gpt-5.5', 'gpt-5.5-pro', 'gpt-5.4', 'gpt-5.4-mini', 'gpt-5.4-nano', 'gpt-5.4-pro', 'gpt-5.2', 'gpt-5', 'gpt-5-mini', 'gpt-5-nano', 'gpt-5-pro', 'gpt-5.1-2025-11-13', 'gpt-4.1', 'o3-deep-research', 'o4-mini-deep-research', 'o4-mini', 'gpt-5-codex'],
+                models: [ 'gpt-5.6-luna', 'gpt-5.6-terra', 'gpt-5.6-sol', 'gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo-preview', 'gpt-4', 'gpt-3.5-turbo', 'gpt-4-vision-preview', 'gpt-4-32k', 'o1-preview', 'o1-mini', 'o1', 'o3-mini', 'gpt-5.5', 'gpt-5.5-pro', 'gpt-5.4', 'gpt-5.4-mini', 'gpt-5.4-nano', 'gpt-5.4-pro', 'gpt-5.2', 'gpt-5', 'gpt-5-mini', 'gpt-5-nano', 'gpt-5-pro', 'gpt-5.1-2025-11-13', 'gpt-4.1', 'o3-deep-research', 'o4-mini-deep-research', 'o4-mini', 'gpt-5-codex'],
                 baseUrl: 'https://api.openai.com/v1/chat/completions',
             },
             {
@@ -1194,6 +1197,7 @@
 
             fillModelSelect(chatModelSelect, chatModelList);
             fillModelSelect(imageModelSelect, imageModelList);
+            chatModelSelect.value = 'OpenAI/gpt-5.6-luna';
 
             currentChat = new QuokkaChat();
             chatRenderer = new QuokkaChatRenderer(document.getElementById('answer'));
