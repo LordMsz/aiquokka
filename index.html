@@ -599,7 +599,7 @@
                 display: none;
             }
 
-            header .brand q {
+            header .brand h1+q {
                 display: none;
             }
 
@@ -636,7 +636,7 @@
 
 <body onload="init()">
     <header>
-    <button class="emoji" onclick="toggleSidebar()" title="Open settings">☰</button>
+    <button onclick="toggleSidebar()" title="Open settings">☰</button>
     <h1 class="chat-name"><input id="chatNameInput" type="text" placeholder="Name this chat"
             oninput="currentChat.name = this.value;" /></h1>
     <div class="brand">
