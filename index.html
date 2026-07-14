@@ -19,6 +19,7 @@
         :root {
             color-scheme: dark;
             --bg: #090d18;
+            --bg-top: #0c1020;
             --bg-secondary: #12182a;
             --panel: rgba(13, 18, 34, 0.88);
             --panel-strong: #151c31;
@@ -37,6 +38,28 @@
             --system-border: #f59e0b;
             --tool-bg: #18262d;
             --tool-border: #22c55e;
+            --accent-rgb: 139, 92, 246;
+            --assistant-rgb: 59, 130, 246;
+            --page-accent-glow: rgba(var(--accent-rgb), 0.25);
+            --page-assistant-glow: rgba(var(--assistant-rgb), 0.18);
+            --loading-start: #312e81;
+            --loading-end: #2563eb;
+            --content-max-width: 1080px;
+            --user-pill-start: #7c3aed;
+            --user-pill-end: #a855f7;
+            --assistant-pill-start: #2563eb;
+            --assistant-pill-end: #3b82f6;
+            --tool-pill-start: #15803d;
+            --tool-pill-end: #22c55e;
+            --system-pill-start: #d97706;
+            --system-pill-end: #f59e0b;
+            --header-bg: rgba(12, 16, 31, 0.86);
+            --sidebar-bg: rgba(9, 13, 24, 0.96);
+            --overlay-bg: rgba(3, 6, 15, 0.6);
+            --chat-button-bg: linear-gradient(135deg, #7c3aed, #8b5cf6);
+            --chat-button-border: rgba(167, 139, 250, 0.55);
+            --image-button-bg: rgba(var(--assistant-rgb), 0.14);
+            --image-button-border: rgba(var(--assistant-rgb), 0.28);
             --shadow: 0 24px 60px rgba(0, 0, 0, 0.34);
         }
 
@@ -51,9 +74,9 @@
             margin: 0;
             color: var(--text);
             background:
-                radial-gradient(circle at top, rgba(139, 92, 246, 0.25), transparent 35%),
-                radial-gradient(circle at bottom right, rgba(59, 130, 246, 0.18), transparent 30%),
-                linear-gradient(180deg, #0c1020 0%, var(--bg) 100%);
+                radial-gradient(circle at top, var(--page-accent-glow), transparent 35%),
+                radial-gradient(circle at bottom right, var(--page-assistant-glow), transparent 30%),
+                linear-gradient(180deg, var(--bg-top) 0%, var(--bg) 100%);
             font-family: 'Noto Sans', sans-serif;
             font-size: 15px;
         }
@@ -78,7 +101,7 @@
             text-align: center;
             margin: 0;
             padding: 1em 0;
-            background: linear-gradient(90deg, #312e81, var(--accent), #2563eb);
+            background: linear-gradient(90deg, var(--loading-start), var(--accent), var(--loading-end));
             color: white;
             box-shadow: var(--shadow);
             z-index: 5;
@@ -93,7 +116,7 @@
             display: flex;
             flex-direction: column;
             height: 100%;
-            max-width: 1080px;
+            max-width: var(--content-max-width);
             margin: 0 auto;
             padding: 0 1rem 1rem;
             gap: 1rem;
@@ -178,7 +201,7 @@
 
         #answer .chat-bubble.user::before {
             content: 'User';
-            background: linear-gradient(90deg, #7c3aed, #a855f7);
+            background: linear-gradient(90deg, var(--user-pill-start), var(--user-pill-end));
         }
 
         #answer .chat-bubble.user.image::before {
@@ -187,7 +210,7 @@
 
         #answer .chat-bubble.assistant::before {
             content: 'Assistant';
-            background: linear-gradient(90deg, #2563eb, #3b82f6);
+            background: linear-gradient(90deg, var(--assistant-pill-start), var(--assistant-pill-end));
         }
 
         #answer .chat-bubble.assistant.toolCall::before {
@@ -196,12 +219,12 @@
 
         #answer .chat-bubble.tool::before {
             content: 'Tool result';
-            background: linear-gradient(90deg, #15803d, #22c55e);
+            background: linear-gradient(90deg, var(--tool-pill-start), var(--tool-pill-end));
         }
 
         #answer .chat-bubble.system::before {
             content: 'System';
-            background: linear-gradient(90deg, #d97706, #f59e0b);
+            background: linear-gradient(90deg, var(--system-pill-start), var(--system-pill-end));
         }
 
         #answer .chat-bubble.system {
@@ -240,7 +263,7 @@
             padding: 1rem 1.1rem;
             border: 1px solid var(--border);
             border-radius: 28px;
-            background: rgba(12, 16, 31, 0.86);
+            background: var(--header-bg);
             box-shadow: var(--shadow);
             backdrop-filter: blur(10px);
         }
@@ -311,7 +334,7 @@
             height: 100vh;
             overflow: auto;
             padding: 1rem;
-            background: rgba(9, 13, 24, 0.96);
+            background: var(--sidebar-bg);
             border-right: 1px solid var(--border);
             transition: left 0.3s ease-in-out;
             box-shadow: var(--shadow);
@@ -325,7 +348,7 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background-color: rgba(3, 6, 15, 0.6);
+            background-color: var(--overlay-bg);
             cursor: pointer;
             backdrop-filter: blur(4px);
             z-index: 3;
@@ -483,13 +506,13 @@
         }
 
         .inputs button#chat {
-            background: linear-gradient(135deg, #7c3aed, #8b5cf6);
-            border-color: rgba(167, 139, 250, 0.55);
+            background: var(--chat-button-bg);
+            border-color: var(--chat-button-border);
         }
 
         .inputs button#image {
-            background: rgba(59, 130, 246, 0.14);
-            border-color: rgba(59, 130, 246, 0.28);
+            background: var(--image-button-bg);
+            border-color: var(--image-button-border);
         }
 
         /* Tools styles */
