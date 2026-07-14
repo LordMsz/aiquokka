@@ -659,12 +659,11 @@
 
 <body onload="init()">
     <header>
-        <button onclick="toggleSidebar()" title="Open settings" aria-label="Open settings menu"><span
-                aria-hidden="true">☰</span></button>
-        <div class="chat-name"><input id="chatNameInput" type="text" placeholder="Name this chat" aria-label="Chat name"
+        <button onclick="toggleSidebar()" title="Open settings" aria-label="Open settings menu">☰</button>
+        <div class="chat-name"><input id="chatNameInput" type="text" placeholder="Name this chat" aria-label="Edit chat name"
                 oninput="currentChat.name = this.value;" /></div>
         <div class="brand">
-            <h1 class="brand-title"><img src="img/aiquokka.png" alt="AI Quokka logo" /><span>AI Quokka, Yet Another OpenAI API client</span></h1>
+            <div class="brand-title"><img src="img/aiquokka.png" alt="AI Quokka logo" /><span>AI Quokka, Yet Another OpenAI API client</span></div>
             <q class="brand-quote"><em>...for Quokkas are known for their cheerful demeanor</em> - ChatGPT 3.5</q>
         </div>
     </header>
@@ -672,7 +671,7 @@
         <div class="main">
             <div id="answer"></div>
             <div class="inputs">
-                <textarea id="mainInput" autofocus placeholder="Type your message..." aria-label="Type your message to the assistant"
+                <textarea id="mainInput" autofocus placeholder="Type your message..." aria-label="Compose message"
                     oninput="this.style.height=''; this.style.height=this.scrollHeight + 'px'"></textarea>
                 <div>
                     <button id="messageRoleSwitcher" onclick="toggleMessageRole()"
