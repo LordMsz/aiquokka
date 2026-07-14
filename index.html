@@ -94,18 +94,6 @@
             margin: 0;
         }
 
-        .sr-only {
-            position: absolute;
-            width: 1px;
-            height: 1px;
-            padding: 0;
-            margin: -1px;
-            overflow: hidden;
-            clip: rect(0, 0, 0, 0);
-            white-space: nowrap;
-            border: 0;
-        }
-
         #loading {
             position: fixed;
             top: 30vh;
@@ -672,11 +660,11 @@
 <body onload="init()">
     <header>
         <button onclick="toggleSidebar()" title="Open settings" aria-label="Open settings menu"><span
-                aria-hidden="true">☰</span><span class="sr-only">Open settings menu</span></button>
+                aria-hidden="true">☰</span></button>
         <div class="chat-name"><input id="chatNameInput" type="text" placeholder="Name this chat" aria-label="Chat name"
                 oninput="currentChat.name = this.value;" /></div>
         <div class="brand">
-            <h1 class="brand-title"><img src="img/aiquokka.png" alt="AI Quokka logo" /> AI Quokka, Yet Another OpenAI API client</h1>
+            <h1 class="brand-title"><img src="img/aiquokka.png" alt="AI Quokka logo" /><span>AI Quokka, Yet Another OpenAI API client</span></h1>
             <q class="brand-quote"><em>...for Quokkas are known for their cheerful demeanor</em> - ChatGPT 3.5</q>
         </div>
     </header>
@@ -684,7 +672,7 @@
         <div class="main">
             <div id="answer"></div>
             <div class="inputs">
-                <textarea id="mainInput" autofocus placeholder="Type your message..." aria-label="Message input"
+                <textarea id="mainInput" autofocus placeholder="Type your message..." aria-label="Type your message to the assistant"
                     oninput="this.style.height=''; this.style.height=this.scrollHeight + 'px'"></textarea>
                 <div>
                     <button id="messageRoleSwitcher" onclick="toggleMessageRole()"
