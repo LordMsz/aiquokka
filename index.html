@@ -109,7 +109,7 @@
             border-radius: 28px;
             background: var(--panel);
             box-shadow: var(--shadow);
-            backdrop-filter: blur(20px);
+            backdrop-filter: blur(10px);
         }
 
         #answer .chat-bubble {
@@ -242,7 +242,7 @@
             border-radius: 28px;
             background: rgba(12, 16, 31, 0.86);
             box-shadow: var(--shadow);
-            backdrop-filter: blur(20px);
+            backdrop-filter: blur(10px);
         }
 
         header button {
@@ -296,8 +296,7 @@
         }
 
         header .brand img {
-            height: 1.35em;
-            filter: drop-shadow(0 0 10px rgba(139, 92, 246, 0.35));
+            height: 1em;
         }
 
         header .brand q {
@@ -441,7 +440,7 @@
             border-radius: 28px;
             background: var(--panel);
             box-shadow: var(--shadow);
-            backdrop-filter: blur(20px);
+            backdrop-filter: blur(10px);
         }
 
         .inputs #mainInput {
@@ -641,7 +640,7 @@
     <h1 class="chat-name"><input id="chatNameInput" type="text" placeholder="Name this chat"
             oninput="currentChat.name = this.value;" /></h1>
     <div class="brand">
-        <h1><img src="img/aiquokka.png" style="height: 1em;" /> AI Quokka, Yet Another OpenAI API client</h1>
+        <h1><img src="img/aiquokka.png" /> AI Quokka, Yet Another OpenAI API client</h1>
         <q><em>...for Quokkas are known for their cheerful demeanor</em> - ChatGPT 3.5</q>
     </div>
 </header>
