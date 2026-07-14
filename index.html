@@ -287,7 +287,7 @@
             min-width: 0;
         }
 
-        header .brand h1 {
+        header .brand .brand-title {
             display: flex;
             align-items: center;
             gap: 0.65rem;
@@ -299,7 +299,7 @@
             height: 1em;
         }
 
-        header .brand q {
+        header .brand .brand-quote {
             color: var(--muted);
         }
 
@@ -595,11 +595,11 @@
                 font-size: 1.2em;
             }
 
-            header .brand h1 {
+            header .brand .brand-title {
                 display: none;
             }
 
-            header .brand h1+q {
+            header .brand .brand-quote {
                 display: none;
             }
 
@@ -613,8 +613,8 @@
             }
 
             .sidebar {
-                width: 70vw;
-                left: -70vw;
+                width: 88vw;
+                left: -88vw;
             }
 
             div.main {
@@ -636,20 +636,20 @@
 
 <body onload="init()">
     <header>
-    <button onclick="toggleSidebar()" title="Open settings" aria-label="Open settings menu">☰</button>
-    <h1 class="chat-name"><input id="chatNameInput" type="text" placeholder="Name this chat" aria-label="Chat name"
-            oninput="currentChat.name = this.value;" /></h1>
-    <div class="brand">
-        <h1><img src="img/aiquokka.png" /> AI Quokka, Yet Another OpenAI API client</h1>
-        <q><em>...for Quokkas are known for their cheerful demeanor</em> - ChatGPT 3.5</q>
-    </div>
-</header>
-<div class="content">
-    <div class="main">
-        <div id="answer"></div>
-        <div class="inputs">
-            <textarea id="mainInput" autofocus placeholder="Type your message..." aria-label="Message input"
-                oninput="this.style.height=''; this.style.height=this.scrollHeight + 'px'"></textarea>
+        <button onclick="toggleSidebar()" title="Open settings" aria-label="Open settings menu">☰</button>
+        <h1 class="chat-name"><input id="chatNameInput" type="text" placeholder="Name this chat" aria-label="Chat name"
+                oninput="currentChat.name = this.value;" /></h1>
+        <div class="brand">
+            <h1 class="brand-title"><img src="img/aiquokka.png" /> AI Quokka, Yet Another OpenAI API client</h1>
+            <q class="brand-quote"><em>...for Quokkas are known for their cheerful demeanor</em> - ChatGPT 3.5</q>
+        </div>
+    </header>
+    <div class="content">
+        <div class="main">
+            <div id="answer"></div>
+            <div class="inputs">
+                <textarea id="mainInput" autofocus placeholder="Type your message..." aria-label="Message input"
+                    oninput="this.style.height=''; this.style.height=this.scrollHeight + 'px'"></textarea>
                 <div>
                     <button id="messageRoleSwitcher" onclick="toggleMessageRole()"
                         title="Next mesage will be under role 'User'">U</button>
