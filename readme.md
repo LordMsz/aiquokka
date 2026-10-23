@@ -92,7 +92,7 @@ Edit index.html, refresh, enjoy.
   - Tip: If you keep the file in some cloud-like storage, you can sync it this way between your devices (maybe a future feature?)
 - General, UX and other
   - Option to install this application as Progressive Web App on your desktop/mobile for easier (read: fancy?) access (requires https hosting)
-  - Responsive design for any resolution (nothing very pretty for now :))
+  - Responsive design for any resolution with a minimalistic dark UI
   - Ctrl + Enter to send a chat on desktop (thx for contribution D!)
   - Swipe left and right to toggle the menu
   - Edit a chat name by clicking it
